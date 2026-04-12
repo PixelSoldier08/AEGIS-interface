@@ -9,7 +9,7 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 def get_ip():
-    return "192.168.31.51"
+    return "My_IP"
 
 # --- VOICE GREETING ---
 @socketio.on('connect')
