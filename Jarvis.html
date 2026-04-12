@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AEGIS | JARVIS Interface</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { margin: 0; background: #000; height: 100vh; overflow: hidden; font-family: 'Courier New', monospace; color: #00e5ff; }
+
+        /* The Moving Fragmented Core */
+        #aegis-core {
+            position: absolute; width: 400px; height: 400px;
+            display: flex; justify-content: center; align-items: center;
+            left: 50%; top: 50%; margin-left: -200px; margin-top: -200px;
+            transition: transform 0.1s ease-out;
+        }
+
+        svg { position: absolute; width: 100%; height: 100%; }
+
+        .shard {
+            fill: none; stroke: #00e5ff; stroke-width: 2;
+            stroke-dasharray: 4 100; /* "Lost parts" look */
+            stroke-linecap: round; filter: drop-shadow(0 0 10px #00e5ff);
+        }
+
+        .spin-fast { animation: rot 3s linear infinite; }
+        .spin-slow { animation: rot 10s linear infinite reverse; }
+        @keyframes rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* HUD Widgets */
+        .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #00e5ff; padding-right: 10px; }
+        .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #00e5ff; padding-left: 10px; }
+
+        #label { font-size: 16px; letter-spacing: 10px; color: #fff; text-shadow: 0 0 15px #00e5ff; opacity: 0.6; }
+    </style>
+</head>
+<body>
+
+    <div class="hud top-right">
+        <div>SYSTEM: AEGIS_CORE_v5.0</div>
+        <div>STATUS: KINETIC_LINK_ACTIVE</div>
+    </div>
+
+    <div class="hud bottom-left">
+        <div>LOC: TIRUCHIRAPPALLI, IN</div>
+        <div>OPERATOR: B.Sc. PHYSICS</div>
+    </div>
+
+    <div id="aegis-core">
+        <svg viewBox="0 0 200 200" class="spin-fast">
+            <circle cx="100" cy="100" r="80" class="shard" style="stroke-dasharray: 8 120;" />
+        </svg>
+        <svg viewBox="0 0 200 200" class="spin-slow">
+            <circle cx="100" cy="100" r="85" class="shard" style="stroke-dasharray: 2 60; opacity: 0.4;" />
+        </svg>
+        <div id="label">AEGIS</div>
+    </div>
+
+    <script>
+        // Replace with your Computer's Local IP Address
+        const socket = io('http://YOUR_COMPUTER_IP:5000'); 
+        const core = document.getElementById('aegis-core');
+
+        socket.on('hand_move', (data) => {
+            // Map 0.0-1.0 data to screen movement
+            const moveX = (data.x - 0.5) * window.innerWidth;
+            const moveY = (data.y - 0.5) * window.innerHeight;
+            
+            core.style.transform = `translate(${moveX}px, ${moveY}px)`;
+        });
+
+        window.onload = () => {
+            if ('speechSynthesis' in window) {
+                const msg = new SpeechSynthesisUtterance("Aegis kinetic protocol established. Monitoring operator movements.");
+                msg.pitch = 0.8;
+                window.speechSynthesis.speak(msg);
+            }
+        };
+    </script>
+</body>
+</html>
