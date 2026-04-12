@@ -59,7 +59,7 @@
 
     <script>
         // Replace with your Computer's Local IP Address
-        const socket = io('http://192.168.31.51');
+        const socket = io('http://192.168.31.51:5000');
         const core = document.getElementById('aegis-core');
 
         socket.on('hand_move', (data) => {
