@@ -1,74 +1,52 @@
 import cv2
-import threading
 import socket
+import threading
 import time
 from flask import Flask
 from flask_socketio import SocketIO, emit
 
-# --- STABLE MEDIAPIPE IMPORT FOR PYTHON 3.14 ---
-try:
-    from mediapipe.tasks import python
-    from mediapipe.tasks.python import vision
-    print("[SUCCESS] Found MediaPipe Task API")
-except:
-    import mediapipe as mp
-    # Fallback to standard if possible
-    mp_hands = mp.solutions.hands if hasattr(mp, 'solutions') else None
-
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# --- GREETING PROCESS ---
+def get_ip():
+    return "192.168.31.51"
+
+# --- VOICE GREETING ---
 @socketio.on('connect')
 def handle_connect():
-    print("\n[AEGIS] COMMANDER DETECTED. HELLO!")
-    # This restores the greeting voice
-    emit('speak', {'text': 'Aegis System Protocol Online. Hello, Commander.'})
+    print("\n[!] COMMANDER CONNECTED")
+    # This forces the voice to trigger
+    emit('speak', {'text': 'Emergency Protocol Active. System Online.'})
 
 def run_vision():
-    # Force use of standard MediaPipe Hands if the task API is too complex
-    import mediapipe as mp
-    # We use a try block to bypass the 'solutions' error if it hits
-    try:
-        hands_engine = mp.python.solutions.hands.Hands(
-            static_image_mode=False,
-            max_num_hands=1,
-            min_detection_confidence=0.5
-        )
-    except:
-        print("[!] Still hitting Attribute Error. Using 'Mock Mode' for movement...")
-        hands_engine = None
-
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-    
-    last_voice_time = 0
-    
+    print(f"\n[SYSTEM] BYPASS MODE ONLINE")
+    print(f"URL: http://{get_ip()}:5000")
+
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret: continue
         
         frame = cv2.flip(frame, 1)
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        if hands_engine:
-            results = hands_engine.process(rgb)
-            if results.multi_hand_landmarks:
-                for res in results.multi_hand_landmarks:
-                    # MOVEMENT: Send palm center
-                    palm = res.landmark[9]
-                    socketio.emit('hand_move', {'x': palm.x, 'y': palm.y})
-                    
-                    # VOICE TRIGGER: Raise hand high
-                    now = time.time()
-                    if res.landmark[8].y < res.landmark[0].y - 0.2:
-                        if now - last_voice_time > 10:
-                            socketio.emit('speak', {'text': 'Tracking your commands.'})
-                            last_voice_time = now
+        # Convert to grayscale to find movement without MediaPipe
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY_INV)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        cv2.imshow('Aegis Vision (3.14 Stable)', frame)
+        if contours:
+            # Track the largest moving object
+            largest = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(largest) > 500:
+                M = cv2.moments(largest)
+                if M["m00"] != 0:
+                    cX = int(M["m10"] / M["m00"]) / frame.shape[1]
+                    cY = int(M["m01"] / M["m00"]) / frame.shape[0]
+                    # MOVE THE SHARDS
+                    socketio.emit('hand_move', {'x': cX, 'y': cY})
+
+        cv2.imshow('Aegis Emergency Vision', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
+
     cap.release()
     cv2.destroyAllWindows()
 
