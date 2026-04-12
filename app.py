@@ -1,47 +1,42 @@
 import cv2
-import mediapipe as mp
-from flask import Flask
-from flask_socketio import SocketIO, emit
 import threading
 import socket
 import time
+from flask import Flask
+from flask_socketio import SocketIO, emit
 
-# --- SETTINGS ---
-MY_IP = "192.168.31.51"
-PORT = 5000
+# --- DEEP IMPORT FIX ---
+# This ignores the 'mp.solutions' shortcut that is causing your error
+import mediapipe.python.solutions.hands as mp_hands
+import mediapipe.python.solutions.drawing_utils as mp_drawing
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Initialize Tracking
-mp_hands = mp.solutions.hands
+# Initialize Hands
 hands = mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=1,
-    min_detection_confidence=0.5, # Reduced for speed
+    min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
 
-# --- 1. THE GREETING PROCESS ---
+# --- GREETING LOGIC ---
 @socketio.on('connect')
 def handle_connect():
-    print(f"\n[SYSTEM] Commander joined at {MY_IP}")
-    # This sends the greeting immediately upon connection
-    emit('speak', {'text': 'Aegis system protocol engaged. Hello, Commander.'})
+    print("\n[AEGIS] COMMANDER DETECTED. INITIATING GREETING...")
+    # This sends the voice command to the phone
+    emit('speak', {'text': 'Aegis System Online. Greetings, Commander.'})
 
-# --- 2. VISION ENGINE (LIGHTWEIGHT) ---
 def run_vision():
     cap = cv2.VideoCapture(0)
-    
-    # Optimization: Lower resolution prevents the 'stop and restart' lag
+    # Performance fix: Lower resolution to stop the lagging/restarting
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
     
-    print(f"\n[AEGIS ONLINE]")
-    print(f"Server Running: http://{MY_IP}:{PORT}")
+    print(f"\n[AEGIS ONLINE] SERVER: http://192.168.31.51:5000")
     
     last_voice_time = 0
-    
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret: continue
@@ -52,23 +47,22 @@ def run_vision():
 
         if results.multi_hand_landmarks:
             for res in results.multi_hand_landmarks:
-                # MOVEMENT: Send palm center coordinates (Landmark 9)
+                # 1. MOVEMENT
                 palm = res.landmark[9]
                 socketio.emit('hand_move', {'x': palm.x, 'y': palm.y})
                 
-                # VOICE GESTURE: Raise hand high to trigger voice
-                current_time = time.time()
-                if res.landmark[8].y < res.landmark[0].y - 0.3:
-                    if current_time - last_voice_time > 8: # 8-second cooldown
-                        socketio.emit('speak', {'text': 'Aegis is tracking your commands.'})
-                        last_voice_time = current_time
+                # 2. VOICE GESTURE (Raise Index Finger)
+                now = time.time()
+                if res.landmark[8].y < res.landmark[0].y - 0.2:
+                    if now - last_voice_time > 10: # 10-second cooldown
+                        socketio.emit('speak', {'text': 'I am monitoring your gestures.'})
+                        last_voice_time = now
 
-        cv2.imshow('Aegis Vision (Performance Mode)', frame)
+        cv2.imshow('Aegis Vision Feed', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
-        
     cap.release()
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     threading.Thread(target=run_vision, daemon=True).start()
-    socketio.run(app, host='0.0.0.0', port=PORT, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5000)
