@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | FINAL_RESTORATION</title>
+    <title>AEGIS | FINAL_BYPASS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
         #hud { position: fixed; inset: 0; pointer-events: none; z-index: 100; padding: 25px; }
         .widget { position: absolute; padding: 12px; border: 1px solid rgba(255, 170, 0, 0.4); background: #000; pointer-events: auto; }
-        #id-box { top: 20px; left: 20px; border-left: 4px solid #00ff00; font-size: 12px; }
+        #id-box { top: 20px; left: 20px; border-left: 4px solid #00ff00; }
         #log { bottom: 25px; left: 25px; width: 340px; max-height: 150px; overflow-y: auto; font-size: 11px; border-bottom: 2px solid #ffaa00; }
         #status { bottom: 25px; right: 25px; color: #00ff00; border-right: 4px solid #00ff00; }
     </style>
@@ -17,8 +17,8 @@
 <body onclick="boot()">
 
     <div id="hud">
-        <div id="id-box" class="widget">STARK_ID: <span id="stark-id" style="color:#00ff00;">INITIALIZING...</span></div>
-        <div id="log" class="widget">>> AEGIS_CORE_V4.0<br>>> CLICK_SCREEN_TO_WAKE_FRIDAY</div>
+        <div id="id-box" class="widget">STARK_ID: <span id="stark-id" style="color:#00ff00;">READY</span></div>
+        <div id="log" class="widget">>> CORE_V5.0_STABLE<br>>> CLICK_TO_ACTIVATE_FRIDAY</div>
         <div id="status" class="widget">OFFLINE</div>
     </div>
 
@@ -28,15 +28,15 @@
 
         function speak(t) {
             if(!audioActive) return;
-            const utter = new SpeechSynthesisUtterance(t);
-            utter.pitch = 1.1; window.speechSynthesis.speak(utter);
+            const u = new SpeechSynthesisUtterance(t);
+            u.pitch = 1.1; window.speechSynthesis.speak(u);
             document.getElementById('log').innerHTML += `<br>>> FRIDAY: ${t}`;
         }
 
         function boot() {
             if(audioActive) return;
             audioActive = true;
-            speak("Force-update successful. Clearing visual noise.");
+            speak("Bypassing firewalls. Visual array restored.");
         }
 
         scene = new THREE.Scene();
@@ -46,26 +46,27 @@
         document.body.appendChild(renderer.domElement);
 
         const loader = new THREE.TextureLoader();
-        loader.load('./suit.png', (texture) => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const img = texture.image;
-            canvas.width = img.width; canvas.height = img.height;
+        // The './' ensures it finds the file in the root directory
+        loader.load('./suit.png', (txt) => {
+            const cvs = document.createElement('canvas');
+            const ctx = cvs.getContext('2d');
+            const img = txt.image;
+            cvs.width = img.width; cvs.height = img.height;
             ctx.drawImage(img, 0, 0);
-            const imgData = ctx.getImageData(0,0,canvas.width,canvas.height).data;
-            const vertices = [];
+            const raw = ctx.getImageData(0,0,cvs.width,cvs.height).data;
+            const pts = [];
 
-            for(let y=0; y<canvas.height; y+=5) {
-                for(let x=0; x<canvas.width; x+=5) {
-                    const i = (y * canvas.width + x) * 4;
-                    // STRICT FILTER: Only if pixel is NOT transparent
-                    if(imgData[i+3] > 150) { 
-                        vertices.push((x-canvas.width/2)*0.07, -(y-canvas.height/2)*0.07, (Math.random()-0.5)*1.5);
+            for(let y=0; y<cvs.height; y+=6) {
+                for(let x=0; x<cvs.width; x+=6) {
+                    const i = (y * cvs.width + x) * 4;
+                    // Only draw if the pixel is solid (Alpha > 120)
+                    if(raw[i+3] > 120) {
+                        pts.push((x-cvs.width/2)*0.075, -(y-cvs.height/2)*0.075, (Math.random()-0.5)*1.5);
                     }
                 }
             }
             const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
             suit = new THREE.Points(geo, new THREE.PointsMaterial({size: 0.1, color: 0xffaa00, transparent: true}));
             scene.add(suit);
         });
@@ -82,7 +83,7 @@
         peer.on('open', id => document.getElementById('stark-id').innerText = id);
         peer.on('connection', c => {
             document.getElementById('status').innerText = "LINKED";
-            speak("Remote link established.");
+            speak("Mobile connection established.");
         });
     </script>
 </body>
