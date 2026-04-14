@@ -2,30 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS V10.0 | STARK_WORKSHOP</title>
+    <title>AEGIS V11.0 | HIGH_RES_WORKSHOP</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
+        body { margin: 0; background: #000; color: #ffaa00; font-family: 'Courier New', monospace; overflow: hidden; }
         .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; pointer-events: none; }
-        .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #00e5ff; padding-right: 10px; }
-        .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #00e5ff; padding-left: 10px; }
+        .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #ffaa00; padding-right: 10px; }
+        .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #ffaa00; padding-left: 10px; }
         #overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 200;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; cursor: pointer; letter-spacing: 5px; font-family: inherit; }
-        #log { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.4); }
+        .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; cursor: pointer; letter-spacing: 5px; font-family: inherit; transition: 0.3s; }
+        .boot-btn:hover { background: rgba(255, 170, 0, 0.1); box-shadow: 0 0 20px #ffaa00; }
+        #log { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.6); }
     </style>
 </head>
 <body>
 
     <div id="overlay" onclick="bootSystem()">
-        <button class="boot-btn">RE-SCALE_VOLUMETRIC_SUIT</button>
+        <button class="boot-btn">INITIALIZE_HIGH_RES_SCAN</button>
     </div>
 
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V10.0</div>
-        <div>SCAN: OPTIMIZED_SCALE_ACTIVE</div>
+        <div>SYSTEM: AEGIS_V11.0</div>
+        <div>SCAN: HIGH_DENSITY_VOLUMETRIC</div>
     </div>
 
     <div class="hud bottom-left">
@@ -33,7 +34,7 @@
         <div>OPERATOR: B.Sc. PHYSICS</div>
     </div>
 
-    <div id="log">>> CALIBRATING_OPTICS...</div>
+    <div id="log">>> WAITING_FOR_USER_SYNC...</div>
 
     <script>
         let isBooted = false;
@@ -43,16 +44,20 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // --- IMPROVED VOICE RECOVERY ---
         function speakFriday(text) {
-            window.speechSynthesis.cancel();
+            window.speechSynthesis.cancel(); 
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
-            utterance.voice = voices.find(v => v.lang.includes('en-GB') && v.name.includes('Female')) || voices[0];
-            utterance.pitch = 1.2;
+            // Specifically targeting the British Female tone for Friday
+            utterance.voice = voices.find(v => v.name.includes('Google UK English Female') || v.lang === 'en-GB') || voices[0];
+            utterance.pitch = 1.3;
+            utterance.rate = 1.05;
             window.speechSynthesis.speak(utterance);
             document.getElementById('log').innerHTML = ">> FRIDAY: " + text;
         }
 
+        // --- HIGH DETAIL IMAGE MAPPING ---
         function createHologram() {
             const loader = new THREE.TextureLoader();
             loader.load('suit.png', function(texture) {
@@ -67,24 +72,20 @@
                 const positions = [];
                 const colors = [];
 
-                // Higher divisor (80 instead of 30) makes the suit "Normal" size
-                const scaleFactor = 80; 
-
-                for (let y = 0; y < canvas.height; y += 3) {
-                    for (let x = 0; x < canvas.width; x += 3) {
+                // DETAIL TWEAK: Using step 1 or 2 for maximum lines
+                for (let y = 0; y < canvas.height; y += 2) { 
+                    for (let x = 0; x < canvas.width; x += 2) {
                         const index = (y * canvas.width + x) * 4;
-                        const r = imgData[index];
-                        const g = imgData[index+1];
-                        const b = imgData[index+2];
                         const alpha = imgData[index+3];
 
-                        if (alpha > 50) { 
-                            const posX = (x - canvas.width / 2) / scaleFactor;
-                            const posY = -(y - canvas.height / 2) / scaleFactor;
-                            const posZ = (Math.random() - 0.5) * 0.8; 
+                        if (alpha > 40) { // Mapping non-transparent pixels
+                            const posX = (x - canvas.width / 2) / 85;
+                            const posY = -(y - canvas.height / 2) / 85;
+                            // Adding localized depth for "solid" appearance
+                            const posZ = (Math.random() - 0.5) * 0.4; 
 
                             positions.push(posX, posY, posZ);
-                            colors.push(r/255, g/255, b/255);
+                            colors.push(imgData[index]/255, imgData[index+1]/255, imgData[index+2]/255);
                         }
                     }
                 }
@@ -94,26 +95,26 @@
                 geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 
                 const material = new THREE.PointsMaterial({ 
-                    size: 0.035, 
+                    size: 0.025, // Smaller points = sharper detail
                     vertexColors: true, 
                     transparent: true, 
-                    opacity: 0.9,
-                    blending: THREE.AdditiveBlending 
+                    opacity: 1.0,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
                 });
 
                 const points = new THREE.Points(geometry, material);
-                // Center the suit so it stands on the grid
-                points.position.y = 2.5; 
+                points.position.y = 2.8; 
                 scene.add(points);
                 window.holoSuit = points;
             });
         }
 
-        const grid = new THREE.GridHelper(30, 30, 0xffaa00, 0x332200);
+        const grid = new THREE.GridHelper(30, 40, 0xffaa00, 0x221100);
         grid.position.y = -4;
         scene.add(grid);
 
-        camera.position.z = 12;
+        camera.position.z = 11;
         camera.position.y = 2;
 
         function bootSystem() {
@@ -121,19 +122,26 @@
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
             createHologram();
-            speakFriday("Calibrating holographic scale. Suit is now sized to workshop specifications.");
+            // Immediate voice sync
+            setTimeout(() => {
+                speakFriday("Increasing resolution. Volumetric mapping at 100%. Detail is optimal, Boss.");
+            }, 500);
         }
 
         function animate() {
             requestAnimationFrame(animate);
             const time = Date.now() * 0.001;
             if (window.holoSuit) {
-                window.holoSuit.rotation.y += 0.008;
-                window.holoSuit.position.y = 2.5 + Math.sin(time) * 0.1;
+                window.holoSuit.rotation.y += 0.006;
+                // Subtle hovering
+                window.holoSuit.position.y = 2.8 + Math.sin(time * 0.5) * 0.05;
             }
             renderer.render(scene, camera);
         }
         animate();
+
+        // Browser voice-fix for some OS
+        window.speechSynthesis.onvoiceschanged = () => { if(isBooted) speakFriday("Voice core updated."); };
     </script>
 </body>
 </html>
