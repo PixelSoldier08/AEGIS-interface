@@ -2,49 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | PRIME_STABLE_V3</title>
+    <title>AEGIS | SILHOUETTE_RECOVERY</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
-        #hud { position: fixed; inset: 0; pointer-events: none; z-index: 100; padding: 20px; }
-        .widget { position: absolute; padding: 10px; border: 1px solid rgba(255, 170, 0, 0.4); background: rgba(0, 0, 0, 0.8); pointer-events: auto; }
-        #stark-box { top: 20px; left: 20px; font-size: 10px; border-color: #00ff00; }
-        #convo-log { bottom: 20px; left: 20px; width: 320px; max-height: 180px; overflow-y: auto; font-size: 11px; }
-        #link-status { bottom: 20px; right: 20px; color: #00ff00; }
-        #id-val { color: #00ff00; cursor: pointer; text-decoration: underline; }
+        #hud { position: fixed; inset: 0; pointer-events: none; z-index: 100; padding: 25px; }
+        .widget { position: absolute; padding: 12px; border: 1px solid rgba(255, 170, 0, 0.4); background: rgba(0, 0, 0, 0.85); pointer-events: auto; }
+        #stark-id-box { top: 20px; left: 20px; font-size: 11px; border-left: 4px solid #00ff00; }
+        #convo-log { bottom: 25px; left: 25px; width: 340px; max-height: 180px; overflow-y: auto; font-size: 11px; line-height: 1.4; }
+        #link-status { bottom: 25px; right: 25px; color: #00ff00; font-weight: bold; }
+        #stark-id { color: #00ff00; cursor: pointer; text-decoration: underline; }
     </style>
 </head>
-<body onclick="initFriday()">
+<body onclick="bootSystem()">
 
     <div id="hud">
-        <div id="stark-box" class="widget">STARK_ID: <span id="id-val">CONNECTING...</span></div>
-        <div id="convo-log" class="widget">>> CORE_SYSTEM_LOADED...<br>>> CLICK_SCREEN_FOR_AUDIO</div>
-        <div id="link-status" class="widget">>> REMOTE: OFFLINE</div>
+        <div id="stark-id-box" class="widget">NEURAL_ID: <span id="stark-id" onclick="copyID()">GENERATING...</span></div>
+        <div id="convo-log" class="widget">>> AEGIS_SYSTEM_V3.2<br>>> STATUS: WAITING_FOR_USER_INIT...</div>
+        <div id="link-status" class="widget">REMOTE: OFFLINE</div>
     </div>
 
     <script>
-        // --- 1. FRIDAY VOICE CORE ---
-        let voiceActive = false;
+        let scene, camera, renderer, suitPoints;
+        let isAudioReady = false;
+
+        // --- 1. FRIDAY VOICE ---
         function speak(text) {
-            if (!voiceActive) return;
-            const synth = window.speechSynthesis;
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.pitch = 1.1; uttr.rate = 1.05;
-            synth.speak(utter);
-            document.getElementById('convo-log').innerHTML += `<br>>> FRIDAY: ${text}`;
+            if (!isAudioReady) return;
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.pitch = 1.1; msg.rate = 1.0;
+            window.speechSynthesis.speak(msg);
+            const log = document.getElementById('convo-log');
+            log.innerHTML += `<br>>> FRIDAY: ${text}`;
+            log.scrollTop = log.scrollHeight;
         }
 
-        function initFriday() {
-            if (voiceActive) return;
-            voiceActive = true;
-            speak("Welcome back, Boss. Recalibrating visual sensors.");
+        function bootSystem() {
+            if (isAudioReady) return;
+            isAudioReady = true;
+            speak("Systems initialized. Scanning for armor silhouette.");
         }
 
-        // --- 2. HOLOGRAM RESTORATION (The "Suit" Fix) ---
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        // --- 2. THE SUIT FIX (The "Silhouette" Logic) ---
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
@@ -57,55 +60,53 @@
             ctx.drawImage(img, 0, 0);
 
             const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            const pos = [];
+            const positions = [];
             
-            // Refined spacing (+= 4) to prevent the "Wall of Static"
-            for (let y = 0; y < canvas.height; y += 4) {
-                for (let x = 0; x < canvas.width; x += 4) {
-                    const i = (y * canvas.width + x) * 4;
-                    if (data[i + 3] > 128) {
-                        pos.push(
-                            (x - canvas.width / 2) * 0.04,  // X Scaling
-                            -(y - canvas.height / 2) * 0.04, // Y Scaling
-                            (Math.random() - 0.5) * 1.2     // Z Depth
+            // INCREASED STEP (+= 5) to stop the "Wall of Static"
+            for (let y = 0; y < canvas.height; y += 5) {
+                for (let x = 0; x < canvas.width; x += 5) {
+                    const alpha = data[((y * canvas.width + x) * 4) + 3];
+                    // Only draw if the pixel is solid enough
+                    if (alpha > 200) { 
+                        positions.push(
+                            (x - canvas.width / 2) * 0.05, 
+                            -(y - canvas.height / 2) * 0.05, 
+                            (Math.random() - 0.5) * 1.5 // Added depth jitter
                         );
                     }
                 }
             }
 
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-            const mat = new THREE.PointsMaterial({ size: 0.08, color: 0xffaa00, transparent: true, opacity: 0.7 });
-            const points = new THREE.Points(geo, mat);
-            scene.add(points);
-            window.suitHolo = points;
-            document.getElementById('convo-log').innerHTML += `<br>>> SUIT_LOADED_SUCCESSFULLY`;
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: 0.1, color: 0xffaa00, transparent: true, opacity: 0.8 });
+            suitPoints = new THREE.Points(geometry, material);
+            scene.add(suitPoints);
+            speak("Visual array restored. Suit silhouette online.");
         });
 
-        camera.position.z = 15; // Adjusted camera to fit the silhouette properly
+        camera.position.z = 25;
+
         function animate() {
             requestAnimationFrame(animate);
-            if(window.suitHolo) window.suitHolo.rotation.y += 0.003;
+            if(suitPoints) suitPoints.rotation.y += 0.003;
             renderer.render(scene, camera);
         }
         animate();
 
-        // --- 3. PEER CONNECTIVITY ---
+        // --- 3. CONNECTION ---
         const peer = new Peer();
-        peer.on('open', id => document.getElementById('id-val').innerText = id);
+        peer.on('open', id => document.getElementById('stark-id').innerText = id);
         peer.on('connection', conn => {
-            document.getElementById('link-status').innerText = ">> REMOTE: LINKED";
-            speak("Neural link established. All systems nominal.");
-            conn.on('data', data => {
-                document.getElementById('convo-log').innerHTML += `<br>>> CMD: ${data}`;
-            });
+            document.getElementById('link-status').innerText = "REMOTE: LINKED";
+            speak("Neural link established. We are live, Boss.");
         });
 
         function copyID() {
-            navigator.clipboard.writeText(document.getElementById('id-val').innerText);
-            document.getElementById('convo-log').innerHTML += `<br>>> ID_COPIED`;
+            const id = document.getElementById('stark-id').innerText;
+            navigator.clipboard.writeText(id);
+            speak("Stark I D copied to clipboard.");
         }
-        document.getElementById('id-val').onclick = copyID;
     </script>
 </body>
 </html>
