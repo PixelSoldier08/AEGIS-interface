@@ -2,48 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AEGIS | REMOTE_V22</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #ffaa00; font-family: monospace; text-align: center; overflow: hidden; }
+        body { margin: 0; background: #000; color: #ffaa00; font-family: monospace; text-align: center; }
         input { width: 80%; padding: 15px; background: #111; border: 1px solid #ffaa00; color: #ffaa00; margin: 20px 0; }
         button { width: 80%; padding: 15px; background: #ffaa00; color: #000; font-weight: bold; border: none; }
-        #pad { width: 90vw; height: 50vh; border: 1px solid rgba(255,170,0,0.3); margin: 20px auto; touch-action: none; display: flex; align-items: center; justify-content: center; }
+        #pad { width: 90vw; height: 60vh; border: 1px solid #333; margin: 20px auto; touch-action: none; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
-    <div style="margin-top:20px;">AEGIS_REMOTE_V22</div>
+    <div style="margin-top:20px;">AEGIS_REMOTE</div>
     <input type="text" id="targetId" placeholder="PASTE_STARK_ID">
-    <button onclick="connect()">ESTABLISH_LINK</button>
-    <div id="status" style="font-size:10px; margin-top:10px;">READY</div>
-    <div id="pad">TOUCH_CONTROL_ACTIVE</div>
-
+    <button onclick="connect()">CONNECT</button>
+    <div id="status" style="margin:10px; font-size:12px;">READY</div>
+    <div id="pad">TRACKPAD_ACTIVE</div>
     <script>
         const peer = new Peer();
         let conn, rx=0, ry=0, sX=0, sY=0;
-
         function connect() {
             const id = document.getElementById('targetId').value.trim();
-            document.getElementById('status').innerText = "LINKING...";
+            document.getElementById('status').innerText = "CONNECTING...";
             conn = peer.connect(id);
-            conn.on('open', () => { 
-                document.getElementById('status').innerText = "LINK_LOCKED"; 
-                document.getElementById('status').style.color = "#00ff00";
-            });
+            conn.on('open', () => { document.getElementById('status').innerText = "CONNECTED"; });
         }
-
         const pad = document.getElementById('pad');
         pad.addEventListener('touchstart', e => { if(e.touches.length==1){ sX=e.touches[0].clientX; sY=e.touches[0].clientY; } });
         pad.addEventListener('touchmove', e => {
-            e.preventDefault();
             if(!conn || !conn.open) return;
             let t = e.touches[0];
             ry += (t.clientX - sX) * 0.01;
             rx += (t.clientY - sY) * 0.01;
             sX = t.clientX; sY = t.clientY;
             conn.send({ rx: rx, ry: ry });
-        }, { passive: false });
+        });
     </script>
 </body>
 </html>
