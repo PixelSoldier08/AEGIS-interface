@@ -63,12 +63,13 @@
             orb.style.animation = "pulse 1s infinite";
             orb.style.background = "#ffaa00";
 
-            conn = peer.connect(id, { reliable: true });
+            conn = peer.connect(id, { reliable: true, serialization: 'json' });
             conn.on('open', () => {
                 txt.innerHTML = ">> LINK_LOCKED_ACTIVE";
                 txt.style.color = "#00ff00";
                 orb.style.background = "#00ff00";
                 orb.style.animation = "none";
+                orb.style.boxShadow = "0 0 15px #00ff00";
                 document.getElementById('connection-hub').style.opacity = '0.2';
             });
         }
