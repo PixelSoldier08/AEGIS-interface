@@ -2,60 +2,54 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | WORKSHOP_HOST_V22</title>
+    <title>AEGIS | HOST_V22</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
-        .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; }
-        .top-left { top: 30px; left: 30px; border-left: 2px solid #ffaa00; padding-left: 10px; }
-        #stark-id { color: #00ff00; font-weight: bold; cursor: pointer; text-decoration: underline; }
-        #log { position: fixed; bottom: 30px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.8); }
-        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-        .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; letter-spacing: 5px; cursor: pointer; }
+        body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: monospace; }
+        #hud { position: fixed; top: 20px; left: 20px; z-index: 10; font-size: 12px; }
+        #stark-id { color: #00ff00; cursor: pointer; text-decoration: underline; font-weight: bold; }
+        #overlay { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
+        button { border: 1px solid #ffaa00; background: none; color: #ffaa00; padding: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="overlay" onclick="bootSystem()"><button class="boot-btn">INITIALIZE_CORE</button></div>
-    <div class="hud top-left">
-        <div>SYSTEM: AEGIS_V22.0</div>
-        <div style="margin-top:5px;">ID: <span id="stark-id" onclick="copyID()">GENERATING...</span></div>
-        <div id="remote-status" style="margin-top:10px; color:#ff0000;">REMOTE: OFFLINE</div>
+    <div id="overlay" onclick="boot()"><button>INITIALIZE_AEGIS</button></div>
+    <div id="hud">
+        AEGIS_V22.0 | <span id="stark-id" onclick="copyID()">BOOTING...</span>
+        <div id="status" style="color:red; margin-top:5px;">REMOTE: OFFLINE</div>
     </div>
-    <div id="log">>> AWAITING_BOOT...</div>
-
     <script>
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
         function copyID() {
             navigator.clipboard.writeText(document.getElementById('stark-id').innerText);
-            document.getElementById('log').innerText = ">> ID_COPIED_TO_CLIPBOARD";
+            alert("ID COPIED");
         }
 
         const peer = new Peer();
         peer.on('open', id => document.getElementById('stark-id').innerText = id);
         peer.on('connection', conn => {
-            document.getElementById('remote-status').innerText = "REMOTE: LINKED";
-            document.getElementById('remote-status').style.color = "#00ff00";
+            document.getElementById('status').innerText = "REMOTE: LINKED";
+            document.getElementById('status').style.color = "#00ff00";
             conn.on('data', data => {
-                if(window.holo) { window.holo.rotation.y = data.ry; window.holo.rotation.x = data.rx; }
+                if(window.obj) { window.obj.rotation.y = data.ry; window.obj.rotation.x = data.rx; }
             });
         });
 
-        function bootSystem() {
+        function boot() {
             document.getElementById('overlay').style.display = 'none';
-            const geom = new THREE.TorusKnotGeometry(10, 3, 100, 16);
-            const mat = new THREE.PointsMaterial({ size: 0.05, color: 0xffaa00 });
-            window.holo = new THREE.Points(geom, mat);
-            scene.add(window.holo);
+            const geom = new THREE.IcosahedronGeometry(10, 1);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true });
+            window.obj = new THREE.Mesh(geom, mat);
+            scene.add(window.obj);
             camera.position.z = 30;
             animate();
         }
-
         function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
     </script>
 </body>
