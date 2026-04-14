@@ -2,55 +2,65 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | HOST_V22</title>
+    <title>AEGIS | WORKSHOP_HOST_V22</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: monospace; }
-        #hud { position: fixed; top: 20px; left: 20px; z-index: 10; font-size: 12px; }
-        #stark-id { color: #00ff00; cursor: pointer; text-decoration: underline; font-weight: bold; }
-        #overlay { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
-        button { border: 1px solid #ffaa00; background: none; color: #ffaa00; padding: 20px; cursor: pointer; }
+        #hud { position: fixed; top: 20px; left: 20px; z-index: 100; font-size: 12px; }
+        #stark-id { color: #00ff00; font-weight: bold; cursor: pointer; text-decoration: underline; }
+        #overlay { position: fixed; inset: 0; background: #000; z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .btn { border: 1px solid #ffaa00; padding: 15px; background: none; color: #ffaa00; letter-spacing: 2px; }
     </style>
 </head>
 <body>
-    <div id="overlay" onclick="boot()"><button>INITIALIZE_AEGIS</button></div>
+    <div id="overlay" onclick="boot()"><button class="btn">INITIALIZE_CORE</button></div>
     <div id="hud">
-        AEGIS_V22.0 | <span id="stark-id" onclick="copyID()">BOOTING...</span>
-        <div id="status" style="color:red; margin-top:5px;">REMOTE: OFFLINE</div>
+        AEGIS_SYSTEM_V22.0<br>
+        ID: <span id="stark-id" onclick="copyID()">GENERATING...</span><br>
+        STATUS: <span id="status" style="color:red;">OFFLINE</span>
     </div>
+
     <script>
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
         function copyID() {
-            navigator.clipboard.writeText(document.getElementById('stark-id').innerText);
-            alert("ID COPIED");
+            const id = document.getElementById('stark-id').innerText;
+            navigator.clipboard.writeText(id);
+            alert("ID_COPIED: " + id);
         }
 
         const peer = new Peer();
-        peer.on('open', id => document.getElementById('stark-id').innerText = id);
-        peer.on('connection', conn => {
-            document.getElementById('status').innerText = "REMOTE: LINKED";
+        peer.on('open', (id) => { document.getElementById('stark-id').innerText = id; });
+        peer.on('connection', (conn) => {
+            document.getElementById('status').innerText = "LINKED";
             document.getElementById('status').style.color = "#00ff00";
-            conn.on('data', data => {
-                if(window.obj) { window.obj.rotation.y = data.ry; window.obj.rotation.x = data.rx; }
+            conn.on('data', (data) => {
+                if(window.holo) {
+                    window.holo.rotation.y = data.ry;
+                    window.holo.rotation.x = data.rx;
+                }
             });
         });
 
         function boot() {
             document.getElementById('overlay').style.display = 'none';
-            const geom = new THREE.IcosahedronGeometry(10, 1);
-            const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true });
-            window.obj = new THREE.Mesh(geom, mat);
-            scene.add(window.obj);
-            camera.position.z = 30;
+            const geometry = new THREE.IcosahedronGeometry(10, 1);
+            const material = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true });
+            window.holo = new THREE.Mesh(geometry, material);
+            scene.add(window.holo);
+            camera.position.z = 25;
             animate();
         }
-        function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
     </script>
 </body>
 </html>
