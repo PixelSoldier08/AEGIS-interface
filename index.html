@@ -2,101 +2,142 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | System Restored</title>
+    <title>AEGIS V6.0 | Autonomous Core</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
         
-        /* Loading Overlay */
-        #loading-screen {
-            position: fixed; inset: 0; background: #000; z-index: 100;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
-
-        /* HUD Widgets (CMD look) */
-        .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 50; }
+        /* HUD Widgets */
+        .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; pointer-events: none; }
         .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #00e5ff; padding-right: 10px; }
         .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #00e5ff; padding-left: 10px; }
 
-        /* The 3D Core Container */
-        #canvas-container { 
-            position: absolute; inset: 0; display: flex; 
-            justify-content: center; align-items: center; 
+        /* Loading Screen */
+        #loading-overlay {
+            position: fixed; inset: 0; background: #000; z-index: 200;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 1s ease;
         }
+        #bar-container { width: 250px; height: 1px; background: #111; margin-top: 20px; overflow: hidden; }
+        #bar { width: 0%; height: 100%; background: #00e5ff; box-shadow: 0 0 10px #00e5ff; }
 
+        #canvas-container { position: absolute; inset: 0; z-index: 1; }
+        
+        /* Scanline Effect */
         .scanline {
-            width: 100%; height: 2px; background: rgba(0, 229, 255, 0.1);
-            position: absolute; animation: scan 4s linear infinite;
+            width: 100%; height: 100%; position: absolute; z-index: 10;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 229, 255, 0.02) 50%);
+            background-size: 100% 4px; pointer-events: none;
         }
-        @keyframes scan { from { top: 0%; } to { top: 100%; } }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen">
-        <div id="loading-text">INITIALIZING AEGIS CORE...</div>
-        <div style="width: 200px; height: 2px; background: #222; margin-top: 10px;">
-            <div id="progress" style="width: 0%; height: 100%; background: #00e5ff;"></div>
-        </div>
+    <div id="loading-overlay">
+        <div style="letter-spacing: 5px; font-size: 14px;">LINKING_SINGULARITY_CORE</div>
+        <div id="bar-container"><div id="bar"></div></div>
     </div>
 
     <div class="scanline"></div>
 
     <div class="hud top-right">
-        <div>STATUS: KINETIC_LINK_SYNC</div>
-        <div id="cmd-out">> TERMINAL ACTIVE</div>
+        <div>SYSTEM: AEGIS_V6.0_STABLE</div>
+        <div>MODE: AUTONOMOUS_3D</div>
     </div>
 
     <div class="hud bottom-left">
-        <div>OPERATOR: B.Sc. PHYSICS</div>
         <div>LOC: TIRUCHIRAPPALLI, IN</div>
+        <div>OPERATOR: B.Sc. PHYSICS</div>
     </div>
 
-    <div id="canvas-container">
-        <div id="aegis-label" style="position: absolute; font-size: 14px; letter-spacing: 10px; opacity: 0.5;">AEGIS</div>
-    </div>
+    <div id="canvas-container"></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // 1. Loading Process Simulation
-        let prog = 0;
-        const interval = setInterval(() => {
-            prog += 5;
-            document.getElementById('progress').style.width = prog + '%';
-            if (prog >= 100) {
-                clearInterval(interval);
-                document.getElementById('loading-screen').style.display = 'none';
-                startVoice();
+        // --- 1. BOOT SEQUENCE & VOICE ---
+        let progress = 0;
+        const bar = document.getElementById('bar');
+        const loadInterval = setInterval(() => {
+            progress += Math.random() * 3;
+            if (progress > 100) progress = 100;
+            bar.style.width = progress + "%";
+            
+            if(progress >= 100) {
+                clearInterval(loadInterval);
+                const overlay = document.getElementById('loading-overlay');
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.remove();
+                    speak("Aegis autonomous mode active. Core stabilized at thirty degrees Celsius. Ready for instructions.");
+                }, 1000);
             }
-        }, 100);
+        }, 80);
 
-        // 2. Voice Restoration
-        function startVoice() {
-            const msg = new SpeechSynthesisUtterance("Aegis online. All systems synchronized. Operator identified.");
-            msg.pitch = 0.8;
-            window.speechSynthesis.speak(msg);
+        function speak(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.pitch = 0.75;
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
         }
 
-        // 3. Simple 3D Wireframe (Replacing what was lost)
+        // --- 2. 3D CORE ENGINE (Three.js) ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ alpha: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        const geometry = new THREE.IcosahedronGeometry(2, 2);
-        const material = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true });
+        // Outer Lattice Shard
+        const geometry = new THREE.IcosahedronGeometry(2, 1);
+        const material = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true, transparent: true, opacity: 0.6 });
         const sphere = new THREE.Mesh(geometry, material);
         scene.add(sphere);
 
+        // Inner Core (The Singularity)
+        const coreGeo = new THREE.SphereGeometry(0.4, 32, 32);
+        const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        scene.add(core);
+
         camera.position.z = 5;
 
+        // Interaction: Sphere follows Mouse subtlely
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth / 2) / 100;
+            mouseY = (e.clientY - window.innerHeight / 2) / 100;
+        });
+
+        // --- 3. ANIMATION LOOP (Physics-based rotation) ---
         function animate() {
             requestAnimationFrame(animate);
-            sphere.rotation.y += 0.005;
-            sphere.rotation.x += 0.002;
+
+            // Subtle floating movement
+            const time = Date.now() * 0.001;
+            sphere.position.y = Math.sin(time) * 0.1;
+            
+            // Lagged follow effect for the mouse
+            sphere.rotation.y += 0.01;
+            sphere.rotation.x += 0.005;
+            
+            // Adjust position slightly based on mouse
+            sphere.position.x += (mouseX - sphere.position.x) * 0.05;
+            sphere.position.y += (-mouseY - sphere.position.y) * 0.05;
+            
+            core.position.copy(sphere.position);
+            
+            // Pulse effect on the core
+            const pulse = 0.4 + Math.sin(time * 4) * 0.05;
+            core.scale.set(pulse, pulse, pulse);
+
             renderer.render(scene, camera);
         }
         animate();
+
+        window.onresize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
     </script>
 </body>
 </html>
