@@ -2,45 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | SILHOUETTE_STABLE</title>
+    <title>AEGIS | FINAL_RESISTANCE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
         #hud { position: fixed; inset: 0; pointer-events: none; z-index: 100; padding: 25px; }
-        .widget { position: absolute; padding: 12px; border: 1px solid rgba(255, 170, 0, 0.4); background: rgba(0, 0, 0, 0.85); pointer-events: auto; }
-        #stark-id-box { top: 20px; left: 20px; font-size: 11px; border-left: 4px solid #00ff00; }
-        #convo-log { bottom: 25px; left: 25px; width: 340px; max-height: 180px; overflow-y: auto; font-size: 11px; line-height: 1.4; border-bottom: 2px solid #ffaa00; }
-        #link-status { bottom: 25px; right: 25px; color: #00ff00; font-weight: bold; border-right: 4px solid #00ff00; }
-        #stark-id { color: #00ff00; cursor: pointer; text-decoration: underline; }
+        .widget { position: absolute; padding: 12px; border: 1px solid rgba(255, 170, 0, 0.4); background: #000; pointer-events: auto; }
+        #stark-id-box { top: 20px; left: 20px; border-left: 4px solid #00ff00; }
+        #convo-log { bottom: 25px; left: 25px; width: 340px; max-height: 150px; overflow-y: auto; font-size: 11px; border-bottom: 2px solid #ffaa00; }
+        #link-status { bottom: 25px; right: 25px; color: #00ff00; border-right: 4px solid #00ff00; }
     </style>
 </head>
-<body onclick="bootSystem()">
+<body onclick="start()">
 
     <div id="hud">
-        <div id="stark-id-box" class="widget">NEURAL_ID: <span id="stark-id" onclick="copyID()">GENERATING...</span></div>
-        <div id="convo-log" class="widget">>> AEGIS_SYSTEM_V3.6<br>>> STATUS: SCANNING_ASSETS...</div>
-        <div id="link-status" class="widget">REMOTE: OFFLINE</div>
+        <div id="stark-id-box" class="widget">ID: <span id="stark-id" style="color:#00ff00; cursor:pointer;">BOOTING...</span></div>
+        <div id="convo-log" class="widget">>> RESET_COMPLETE<br>>> CLICK_SCREEN_TO_WAKE_FRIDAY</div>
+        <div id="link-status" class="widget">OFFLINE</div>
     </div>
 
     <script>
-        let scene, camera, renderer, suitPoints;
-        let isAudioReady = false;
+        let scene, camera, renderer, points;
+        let voiceReady = false;
 
-        function speak(text) {
-            if (!isAudioReady) return;
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.pitch = 1.1; msg.rate = 1.0;
-            window.speechSynthesis.speak(msg);
-            const log = document.getElementById('convo-log');
-            log.innerHTML += `<br>>> FRIDAY: ${text}`;
-            log.scrollTop = log.scrollHeight;
+        function speak(t) {
+            if(!voiceReady) return;
+            let m = new SpeechSynthesisUtterance(t);
+            m.pitch = 1.1; window.speechSynthesis.speak(m);
+            document.getElementById('convo-log').innerHTML += `<br>>> FRIDAY: ${t}`;
         }
 
-        function bootSystem() {
-            if (isAudioReady) return;
-            isAudioReady = true;
-            speak("Re-calibrating visual sensors. Filtering background noise.");
+        function start() {
+            if(voiceReady) return;
+            voiceReady = true;
+            speak("Force-clearing visual buffer. Suit restoration in progress.");
         }
 
         scene = new THREE.Scene();
@@ -50,62 +46,45 @@
         document.body.appendChild(renderer.domElement);
 
         const loader = new THREE.TextureLoader();
-        loader.load('suit.png', (texture) => {
-            const img = texture.image;
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = img.width; canvas.height = img.height;
+        // The "./" helps the server locate the file relative to index.html
+        loader.load('./suit.png', (txt) => {
+            const cvs = document.createElement('canvas');
+            const ctx = cvs.getContext('2d');
+            const img = txt.image;
+            cvs.width = img.width; cvs.height = img.height;
             ctx.drawImage(img, 0, 0);
+            const raw = ctx.getImageData(0,0,cvs.width,cvs.height).data;
+            const pts = [];
 
-            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            const positions = [];
-            
-            // Step 6 provides optimal density for the Mark 85 silhouette
-            for (let y = 0; y < canvas.height; y += 6) {
-                for (let x = 0; x < canvas.width; x += 6) {
-                    const i = (y * canvas.width + x) * 4;
-                    const alpha = data[i + 3];
-                    
-                    // CRITICAL FIX: alpha > 0 ensures we skip the background "box"
-                    if (alpha > 50) { 
-                        positions.push(
-                            (x - canvas.width / 2) * 0.06, 
-                            -(y - canvas.height / 2) * 0.06, 
-                            (Math.random() - 0.5) * 2.0 
-                        );
+            for(let y=0; y<cvs.height; y+=6) {
+                for(let x=0; x<cvs.width; x+=6) {
+                    const i = (y * cvs.width + x) * 4;
+                    // ONLY draw pixels that are NOT transparent (Alpha > 100)
+                    if(raw[i+3] > 100) {
+                        pts.push((x-cvs.width/2)*0.07, -(y-cvs.height/2)*0.07, (Math.random()-0.5)*1.5);
                     }
                 }
             }
-
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ size: 0.12, color: 0xffaa00, transparent: true, opacity: 0.9 });
-            suitPoints = new THREE.Points(geometry, material);
-            scene.add(suitPoints);
-            speak("Silhouette recovered. Static cleared.");
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+            points = new THREE.Points(geo, new THREE.PointsMaterial({size: 0.1, color: 0xffaa00, transparent: true}));
+            scene.add(points);
         });
 
-        camera.position.z = 28;
-
+        camera.position.z = 30;
         function animate() {
             requestAnimationFrame(animate);
-            if(suitPoints) suitPoints.rotation.y += 0.004;
+            if(points) points.rotation.y += 0.002;
             renderer.render(scene, camera);
         }
         animate();
 
         const peer = new Peer();
         peer.on('open', id => document.getElementById('stark-id').innerText = id);
-        peer.on('connection', conn => {
-            document.getElementById('link-status').innerText = "REMOTE: LINKED";
-            speak("External link active.");
+        peer.on('connection', c => {
+            document.getElementById('link-status').innerText = "LINKED";
+            speak("Remote link established.");
         });
-
-        function copyID() {
-            const id = document.getElementById('stark-id').innerText;
-            navigator.clipboard.writeText(id);
-            speak("I D copied.");
-        }
     </script>
 </body>
 </html>
