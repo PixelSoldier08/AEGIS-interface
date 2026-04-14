@@ -1,45 +1,115 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>AEGIS_CONTROLLER</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AEGIS | REMOTE_LINK</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
-        body { background: #000; color: #ffaa00; text-align: center; font-family: sans-serif; height: 100vh; overflow: hidden; }
-        #pad { width: 90%; height: 60%; border: 2px solid #ffaa00; margin: 20px auto; border-radius: 20px; }
-        input { background: #111; border: 1px solid #ffaa00; color: #ffaa00; padding: 10px; width: 80%; margin-bottom: 10px; }
+        body { 
+            margin: 0; background: #000; color: #ffaa00; 
+            font-family: 'Courier New', monospace; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        #header { margin-top: 20px; text-transform: uppercase; letter-spacing: 3px; font-size: 14px; }
+        
+        #connection-hub { width: 90%; margin: 20px 0; }
+        input { 
+            width: 100%; padding: 12px; background: #111; border: 1px solid #ffaa00; 
+            color: #ffaa00; border-radius: 5px; box-sizing: border-box; font-family: inherit;
+        }
+        button { 
+            width: 100%; margin-top: 10px; padding: 12px; background: #ffaa00; 
+            color: #000; border: none; font-weight: bold; cursor: pointer; border-radius: 5px;
+        }
+
+        #pad { 
+            width: 90vw; height: 60vh; border: 2px solid rgba(255, 170, 0, 0.3); 
+            border-radius: 20px; display: flex; align-items: center; justify-content: center;
+            position: relative; background: radial-gradient(circle, rgba(255,170,0,0.05) 0%, rgba(0,0,0,1) 80%);
+        }
+        #pad::after { content: "KINETIC_SENSORS_ACTIVE"; font-size: 10px; opacity: 0.5; }
+        
+        #status { margin-top: 15px; font-size: 10px; color: #00ff00; }
     </style>
 </head>
 <body>
-    <h2>AEGIS REMOTE</h2>
-    <input type="text" id="targetId" placeholder="Enter Computer Stark_ID">
-    <button onclick="connectToPC()" style="padding: 10px; background: #ffaa00; border: none; font-weight: bold;">LINK</button>
-    <div id="pad">DRAG HERE TO MOVE SUIT</div>
-    <p>Pinch to Zoom | Drag to Rotate</p>
+
+    <div id="header">AEGIS Controller V2.1</div>
+
+    <div id="connection-hub">
+        <input type="text" id="targetId" placeholder="ENTER STARK_ID">
+        <button onclick="connectToPC()">ESTABLISH LINK</button>
+    </div>
+
+    <div id="pad" id="gestureZone"></div>
+
+    <div id="status">>> STANDBY_FOR_LINK</div>
 
     <script>
         const peer = new Peer();
         let conn;
         let rotationX = 0, rotationY = 0, zoom = 1;
+        let initialDist = 0;
 
+        // --- 1. THE HANDSHAKE ---
         function connectToPC() {
-            const id = document.getElementById('targetId').value;
+            const id = document.getElementById('targetId').value.trim();
+            if (!id) return;
+            
+            document.getElementById('status').innerHTML = ">> ATTEMPTING_HANDSHAKE...";
             conn = peer.connect(id);
-            conn.on('open', () => { alert("LINK ESTABLISHED"); });
+
+            conn.on('open', () => {
+                document.getElementById('status').innerHTML = ">> NEURAL_LINK_LOCKED";
+                document.getElementById('connection-hub').style.display = 'none';
+            });
+
+            conn.on('error', (err) => {
+                document.getElementById('status').innerHTML = ">> ERROR: " + err;
+            });
         }
 
         const pad = document.getElementById('pad');
+
+        // --- 2. GESTURE ENGINE (Rotate & Zoom) ---
         pad.addEventListener('touchmove', (e) => {
-            e.preventDefault();
+            e.preventDefault(); // Stop mobile scrolling
             if (!conn) return;
 
-            let touch = e.touches[0];
-            rotationY = (touch.clientX / window.innerWidth) * 6.28;
-            rotationX = (touch.clientY / window.innerHeight) * 3.14;
+            // SINGLE FINGER: ROTATION
+            if (e.touches.length === 1) {
+                let touch = e.touches[0];
+                // Map screen coordinates to rotation radians
+                rotationY = (touch.clientX / window.innerWidth) * 6.28; 
+                rotationX = (touch.clientY / window.innerHeight) * 3.14;
+            } 
             
-            // Send kinetic data to PC
+            // TWO FINGERS: PINCH ZOOM
+            else if (e.touches.length === 2) {
+                let dist = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+
+                if (initialDist === 0) {
+                    initialDist = dist;
+                } else {
+                    let delta = (dist - initialDist) * 0.005;
+                    // Clamp zoom between 0.5 (tiny) and 3.0 (huge)
+                    zoom = Math.min(Math.max(0.5, zoom + delta), 3.0);
+                    initialDist = dist;
+                }
+            }
+            
+            // TRANSMIT TO PC
             conn.send({ rx: rotationX, ry: rotationY, zoom: zoom });
+        }, { passive: false });
+
+        pad.addEventListener('touchend', () => {
+            initialDist = 0; // Reset zoom anchor
         });
+
     </script>
 </body>
 </html>
