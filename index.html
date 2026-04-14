@@ -2,64 +2,96 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | WORKSHOP_HOST_V22</title>
+    <title>AEGIS | CORE_RESTORATION_V22</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: monospace; }
-        #hud { position: fixed; top: 20px; left: 20px; z-index: 100; font-size: 12px; }
-        #stark-id { color: #00ff00; font-weight: bold; cursor: pointer; text-decoration: underline; }
-        #overlay { position: fixed; inset: 0; background: #000; z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-        .btn { border: 1px solid #ffaa00; padding: 15px; background: none; color: #ffaa00; letter-spacing: 2px; }
+        body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
+        .hud-overlay { position: fixed; inset: 0; border: 20px solid rgba(255, 170, 0, 0.05); pointer-events: none; }
+        #hud-text { position: fixed; top: 30px; left: 30px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
+        #stark-id { color: #00ff00; font-weight: bold; cursor: pointer; text-decoration: underline; pointer-events: auto; }
+        #boot-screen { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; }
+        .glitch { font-size: 24px; animation: pulse 2s infinite; letter-spacing: 10px; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 </head>
 <body>
-    <div id="overlay" onclick="boot()"><button class="btn">INITIALIZE_CORE</button></div>
-    <div id="hud">
-        AEGIS_SYSTEM_V22.0<br>
-        ID: <span id="stark-id" onclick="copyID()">GENERATING...</span><br>
-        STATUS: <span id="status" style="color:red;">OFFLINE</span>
+    <div id="boot-screen" onclick="restoreCore()">
+        <div class="glitch">RESTORE_NEURAL_LINK</div>
+        <div style="font-size: 10px; margin-top: 20px;">CLICK TO INITIALIZE FRIDAY</div>
+    </div>
+
+    <div class="hud-overlay"></div>
+    <div id="hud-text">
+        SYSTEM: AEGIS_V22.4_RESTORATION<br>
+        ID: <span id="stark-id" onclick="copyID()">SYNCING...</span><br>
+        <span id="conn-status" style="color:red;">LINK: OFFLINE</span>
     </div>
 
     <script>
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        function copyID() {
-            const id = document.getElementById('stark-id').innerText;
-            navigator.clipboard.writeText(id);
-            alert("ID_COPIED: " + id);
-        }
-
+        let scene, camera, renderer, particles;
         const peer = new Peer();
-        peer.on('open', (id) => { document.getElementById('stark-id').innerText = id; });
-        peer.on('connection', (conn) => {
-            document.getElementById('status').innerText = "LINKED";
-            document.getElementById('status').style.color = "#00ff00";
-            conn.on('data', (data) => {
-                if(window.holo) {
-                    window.holo.rotation.y = data.ry;
-                    window.holo.rotation.x = data.rx;
+
+        peer.on('open', id => document.getElementById('stark-id').innerText = id);
+        peer.on('connection', conn => {
+            document.getElementById('conn-status').innerText = "LINK: ACTIVE";
+            document.getElementById('conn-status').style.color = "#00ff00";
+            speak("Neural link established. Systems are at your command, Boss.");
+            conn.on('data', data => {
+                if(particles) {
+                    particles.rotation.y = data.ry;
+                    particles.rotation.x = data.rx;
                 }
             });
         });
 
-        function boot() {
-            document.getElementById('overlay').style.display = 'none';
-            const geometry = new THREE.IcosahedronGeometry(10, 1);
-            const material = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true });
-            window.holo = new THREE.Mesh(geometry, material);
-            scene.add(window.holo);
+        function speak(text) {
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.rate = 0.9; msg.pitch = 0.8;
+            window.speechSynthesis.speak(msg);
+        }
+
+        function restoreCore() {
+            document.getElementById('boot-screen').style.display = 'none';
+            initThree();
+            speak("Welcome back, Ikki. Restoring AEGIS visual core.");
+        }
+
+        function initThree() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // High-Density Particle Restoration
+            const geo = new THREE.SphereGeometry(10, 64, 64);
+            const count = geo.attributes.position.count;
+            const pGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+            
+            for(let i=0; i<count*3; i++) {
+                positions[i] = geo.attributes.position.array[i] + (Math.random() - 0.5) * 2;
+            }
+            
+            pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const pMat = new THREE.PointsMaterial({ size: 0.07, color: 0xffaa00, transparent: true, opacity: 0.8 });
+            particles = new THREE.Points(pGeo, pMat);
+            scene.add(particles);
+
             camera.position.z = 25;
             animate();
         }
 
         function animate() {
             requestAnimationFrame(animate);
+            if(particles) particles.rotation.y += 0.002;
             renderer.render(scene, camera);
+        }
+
+        function copyID() {
+            navigator.clipboard.writeText(document.getElementById('stark-id').innerText);
+            alert("STARK_ID COPIED");
         }
     </script>
 </body>
