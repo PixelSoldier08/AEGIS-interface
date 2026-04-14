@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS V9.0 | VOLUMETRIC_CORE</title>
+    <title>AEGIS V10.0 | STARK_WORKSHOP</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
@@ -13,19 +13,19 @@
             position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .boot-btn { border: 1px solid #00e5ff; padding: 20px; background: transparent; color: #00e5ff; cursor: pointer; letter-spacing: 5px; font-family: inherit; }
-        #log { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(0, 229, 255, 0.4); }
+        .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; cursor: pointer; letter-spacing: 5px; font-family: inherit; }
+        #log { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.4); }
     </style>
 </head>
 <body>
 
     <div id="overlay" onclick="bootSystem()">
-        <button class="boot-btn">RESTORE_FRIDAY_VOICE_&_STARK_HOLO</button>
+        <button class="boot-btn">RE-SCALE_VOLUMETRIC_SUIT</button>
     </div>
 
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V9.0</div>
-        <div>SCAN: IMAGE_TO_PARTICLE_MAPPING</div>
+        <div>SYSTEM: AEGIS_V10.0</div>
+        <div>SCAN: OPTIMIZED_SCALE_ACTIVE</div>
     </div>
 
     <div class="hud bottom-left">
@@ -33,7 +33,7 @@
         <div>OPERATOR: B.Sc. PHYSICS</div>
     </div>
 
-    <div id="log">>> SYSTEM_OFFLINE</div>
+    <div id="log">>> CALIBRATING_OPTICS...</div>
 
     <script>
         let isBooted = false;
@@ -43,20 +43,16 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 1. THE VOICE RESTORATION ---
         function speakFriday(text) {
-            window.speechSynthesis.cancel(); // Clear previous queue
+            window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
-            // Force a female British voice if possible
             utterance.voice = voices.find(v => v.lang.includes('en-GB') && v.name.includes('Female')) || voices[0];
             utterance.pitch = 1.2;
-            utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);
             document.getElementById('log').innerHTML = ">> FRIDAY: " + text;
         }
 
-        // --- 2. IMAGE-TO-3D PARTICLE MAPPING ---
         function createHologram() {
             const loader = new THREE.TextureLoader();
             loader.load('suit.png', function(texture) {
@@ -71,19 +67,21 @@
                 const positions = [];
                 const colors = [];
 
-                // Skip pixels to keep performance smooth (every 4th pixel)
-                for (let y = 0; y < canvas.height; y += 4) {
-                    for (let x = 0; x < canvas.width; x += 4) {
+                // Higher divisor (80 instead of 30) makes the suit "Normal" size
+                const scaleFactor = 80; 
+
+                for (let y = 0; y < canvas.height; y += 3) {
+                    for (let x = 0; x < canvas.width; x += 3) {
                         const index = (y * canvas.width + x) * 4;
                         const r = imgData[index];
                         const g = imgData[index+1];
                         const b = imgData[index+2];
-                        const avg = (r + g + b) / 3;
+                        const alpha = imgData[index+3];
 
-                        if (avg > 30) { // Only map the "glowing" parts of your PNG
-                            const posX = (x - canvas.width / 2) / 30;
-                            const posY = -(y - canvas.height / 2) / 30;
-                            const posZ = (Math.random() - 0.5) * 1.5; // Adds 3D thickness
+                        if (alpha > 50) { 
+                            const posX = (x - canvas.width / 2) / scaleFactor;
+                            const posY = -(y - canvas.height / 2) / scaleFactor;
+                            const posZ = (Math.random() - 0.5) * 0.8; 
 
                             positions.push(posX, posY, posZ);
                             colors.push(r/255, g/255, b/255);
@@ -96,40 +94,42 @@
                 geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 
                 const material = new THREE.PointsMaterial({ 
-                    size: 0.05, 
+                    size: 0.035, 
                     vertexColors: true, 
                     transparent: true, 
-                    opacity: 0.8,
+                    opacity: 0.9,
                     blending: THREE.AdditiveBlending 
                 });
 
                 const points = new THREE.Points(geometry, material);
+                // Center the suit so it stands on the grid
+                points.position.y = 2.5; 
                 scene.add(points);
-                
                 window.holoSuit = points;
             });
         }
 
-        const grid = new THREE.GridHelper(20, 20, 0x00e5ff, 0x002222);
-        grid.position.y = -6;
+        const grid = new THREE.GridHelper(30, 30, 0xffaa00, 0x332200);
+        grid.position.y = -4;
         scene.add(grid);
 
         camera.position.z = 12;
+        camera.position.y = 2;
 
         function bootSystem() {
             if (isBooted) return;
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
             createHologram();
-            speakFriday("Welcome home, Boss. Mapping image data to volumetric particles now.");
+            speakFriday("Calibrating holographic scale. Suit is now sized to workshop specifications.");
         }
 
         function animate() {
             requestAnimationFrame(animate);
             const time = Date.now() * 0.001;
             if (window.holoSuit) {
-                window.holoSuit.rotation.y += 0.005;
-                window.holoSuit.position.y = Math.sin(time) * 0.2;
+                window.holoSuit.rotation.y += 0.008;
+                window.holoSuit.position.y = 2.5 + Math.sin(time) * 0.1;
             }
             renderer.render(scene, camera);
         }
