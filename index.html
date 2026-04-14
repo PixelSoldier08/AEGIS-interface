@@ -2,20 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | WORKSHOP_HOST_V20</title>
+    <title>AEGIS | WORKSHOP_HOST_V22</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
         .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; pointer-events: none; }
-        .top-left { top: 30px; left: 30px; border-left: 2px solid #ffaa00; padding-left: 10px; }
+        .top-left { top: 30px; left: 30px; border-left: 2px solid #ffaa00; padding-left: 10px; pointer-events: auto; }
         .bottom-left { bottom: 30px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.8); width: 450px; line-height: 1.5; }
-        #stark-id { color: #00ff00; font-weight: bold; }
+        #stark-id { color: #00ff00; font-weight: bold; cursor: pointer; text-decoration: underline; }
+        #stark-id:hover { color: #fff; }
         #overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200;
             display: flex; justify-content: center; align-items: center; cursor: pointer;
         }
-        .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; letter-spacing: 5px; }
+        .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; letter-spacing: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -25,12 +26,16 @@
     </div>
 
     <div class="hud top-left">
-        <div>SYSTEM: AEGIS_V20.0</div>
-        <div>STARK_ID: <span id="stark-id">GENERATING...</span></div>
+        <div>SYSTEM: AEGIS_V22.0</div>
+        <div onclick="copyID()">STARK_ID: <span id="stark-id">GENERATING...</span> (CLICK_TO_COPY)</div>
         <div id="mic-status" style="color:#555">MIC: STANDBY</div>
+        <div id="remote-status" style="margin-top: 10px; display: flex; align-items: center;">
+            <div id="remote-orb" style="width: 10px; height: 10px; border-radius: 50%; background: #ff0000; margin-right: 8px;"></div>
+            <span id="remote-txt" style="color: #ff0000;">REMOTE: OFFLINE</span>
+        </div>
     </div>
 
-    <div id="log" class="bottom-left">>> SYSTEM_OFFLINE... AWAITING_BIO_AUTHENTICATION</div>
+    <div id="log" class="bottom-left">>> SYSTEM_OFFLINE... AWAITING_AUTHENTICATION</div>
 
     <script>
         let isBooted = false;
@@ -40,12 +45,17 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 1. FRIDAY VOICE & BRAIN ---
         const FridayBrain = {
-            greetings: ["Systems online. What's the play, Boss?", "Ready to break some laws of physics today?", "Workshop is calibrated and ready."],
-            jokes: ["I asked the mainboard for a raise. It told me to stop being so 'volatile'.", "I'm simulating a billion scenarios where we finish this on time. Zero results so far."],
-            physics: ["Orbital mechanics are green. Newton would be proud.", "Quantum gravity simulations are stable. Fabric of spacetime holding."]
+            greetings: ["Systems online. Ready for your instructions, Boss.", "Workshop is calibrated and ready."],
+            jokes: ["I asked the mainboard for a raise. It told me to stop being so 'volatile'."],
+            physics: ["Orbital mechanics are green. Newton would be proud."]
         };
+
+        function copyID() {
+            const idText = document.getElementById('stark-id').innerText;
+            navigator.clipboard.writeText(idText);
+            document.getElementById('log').innerHTML = ">> SYSTEM: ID_COPIED_TO_CLIPBOARD";
+        }
 
         function speakFriday(text) {
             window.speechSynthesis.cancel();
@@ -57,33 +67,27 @@
             document.getElementById('log').innerHTML = ">> FRIDAY: " + text;
         }
 
-        // Voice Heartbeat to prevent hibernation
-        setInterval(() => { if(isBooted && !window.speechSynthesis.speaking) window.speechSynthesis.resume(); }, 5000);
-
-        // --- 2. SPEECH RECOGNITION (The Ears) ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
-        recognition.lang = 'en-US';
-
         recognition.onresult = (event) => {
             const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
-            console.log("Heard:", transcript);
             if (transcript.includes("friday") || transcript.includes("hello")) {
                 speakFriday(FridayBrain.greetings[Math.floor(Math.random()*FridayBrain.greetings.length)]);
             } else if (transcript.includes("joke")) {
-                speakFriday(FridayBrain.jokes[Math.floor(Math.random()*FridayBrain.jokes.length)]);
-            } else if (transcript.includes("physics")) {
-                speakFriday(FridayBrain.physics[Math.floor(Math.random()*FridayBrain.physics.length)]);
+                speakFriday(FridayBrain.jokes[0]);
             }
         };
-        recognition.onend = () => { if(isBooted) recognition.start(); };
 
-        // --- 3. PEERJS LINK (Remote Connection) ---
         const peer = new Peer();
         peer.on('open', (id) => { document.getElementById('stark-id').innerText = id; });
         peer.on('connection', (conn) => {
-            document.getElementById('log').innerHTML = ">> NEURAL_LINK_ESTABLISHED";
+            document.getElementById('remote-orb').style.background = "#00ff00";
+            document.getElementById('remote-orb').style.boxShadow = "0 0 10px #00ff00";
+            document.getElementById('remote-txt').innerText = "REMOTE: LINKED";
+            document.getElementById('remote-txt').style.color = "#00ff00";
+            speakFriday("Mobile link established. Remote control is online, Boss.");
+            
             conn.on('data', (data) => {
                 if(window.holoSuit) {
                     window.holoSuit.rotation.y = data.ry;
@@ -93,7 +97,6 @@
             });
         });
 
-        // --- 4. 3D HOLOGRAM GENERATION ---
         function createHologram() {
             const loader = new THREE.TextureLoader();
             loader.load('suit.png', function(texture) {
@@ -108,7 +111,7 @@
                     for (let x = 0; x < canvas.width; x += 2) {
                         const i = (y * canvas.width + x) * 4;
                         if (imgData[i+3] > 60) {
-                            positions.push((x - canvas.width/2)/90, -(y - canvas.height/2)/90, (Math.random()-0.5)*0.3);
+                            positions.push((x - canvas.width/2)/90, -(y - canvas.height/2)/90, (Math.random()-0.5)*0.2);
                             colors.push(imgData[i]/255, imgData[i+1]/255, imgData[i+2]/255);
                         }
                     }
@@ -116,29 +119,25 @@
                 const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                 geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-                const material = new THREE.PointsMaterial({ size: 0.015, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending });
-                const points = new THREE.Points(geometry, material);
+                const points = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.015, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending }));
                 scene.add(points);
                 window.holoSuit = points;
             });
         }
 
         camera.position.z = 8;
-
         function bootSystem() {
-            if (isBooted) return;
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
             document.getElementById('mic-status').style.color = '#00ff00';
             document.getElementById('mic-status').innerText = 'MIC: ACTIVE';
             createHologram();
             recognition.start();
-            speakFriday("Neural link active. Systems are at your command, Boss.");
+            speakFriday("Neural link active. Systems are at your command.");
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            if(window.holoSuit) window.holoSuit.rotation.y += 0.001; // Slow idle spin
             renderer.render(scene, camera);
         }
         animate();
