@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | PRIME_STABLE</title>
+    <title>AEGIS | SILHOUETTE_STABLE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
@@ -19,7 +19,7 @@
 
     <div id="hud">
         <div id="stark-id-box" class="widget">NEURAL_ID: <span id="stark-id" onclick="copyID()">GENERATING...</span></div>
-        <div id="convo-log" class="widget">>> AEGIS_SYSTEM_V3.5<br>>> STATUS: READY_FOR_HANDSHAKE...</div>
+        <div id="convo-log" class="widget">>> AEGIS_SYSTEM_V3.6<br>>> STATUS: SCANNING_ASSETS...</div>
         <div id="link-status" class="widget">REMOTE: OFFLINE</div>
     </div>
 
@@ -27,7 +27,6 @@
         let scene, camera, renderer, suitPoints;
         let isAudioReady = false;
 
-        // --- 1. FRIDAY VOICE (Fixed Profile) ---
         function speak(text) {
             if (!isAudioReady) return;
             const msg = new SpeechSynthesisUtterance(text);
@@ -41,10 +40,9 @@
         function bootSystem() {
             if (isAudioReady) return;
             isAudioReady = true;
-            speak("Systems fully operational. Welcome back, Boss.");
+            speak("Re-calibrating visual sensors. Filtering background noise.");
         }
 
-        // --- 2. THE SUIT (Precision Silhouette Logic) ---
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -62,17 +60,18 @@
             const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
             const positions = [];
             
-            // Critical: Step 5 prevents the orange box
-            for (let y = 0; y < canvas.height; y += 5) {
-                for (let x = 0; x < canvas.width; x += 5) {
+            // Step 6 provides optimal density for the Mark 85 silhouette
+            for (let y = 0; y < canvas.height; y += 6) {
+                for (let x = 0; x < canvas.width; x += 6) {
                     const i = (y * canvas.width + x) * 4;
                     const alpha = data[i + 3];
-                    // Alpha threshold 200 ensures only the suit is drawn, no "box" edges
-                    if (alpha > 200) { 
+                    
+                    // CRITICAL FIX: alpha > 0 ensures we skip the background "box"
+                    if (alpha > 50) { 
                         positions.push(
-                            (x - canvas.width / 2) * 0.055, 
-                            -(y - canvas.height / 2) * 0.055, 
-                            (Math.random() - 0.5) * 1.8 
+                            (x - canvas.width / 2) * 0.06, 
+                            -(y - canvas.height / 2) * 0.06, 
+                            (Math.random() - 0.5) * 2.0 
                         );
                     }
                 }
@@ -80,42 +79,32 @@
 
             const geometry = new THREE.BufferGeometry();
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ size: 0.11, color: 0xffaa00, transparent: true, opacity: 0.85 });
+            const material = new THREE.PointsMaterial({ size: 0.12, color: 0xffaa00, transparent: true, opacity: 0.9 });
             suitPoints = new THREE.Points(geometry, material);
             scene.add(suitPoints);
+            speak("Silhouette recovered. Static cleared.");
         });
 
-        camera.position.z = 25;
+        camera.position.z = 28;
 
         function animate() {
             requestAnimationFrame(animate);
-            if(suitPoints) suitPoints.rotation.y += 0.003;
+            if(suitPoints) suitPoints.rotation.y += 0.004;
             renderer.render(scene, camera);
         }
         animate();
 
-        // --- 3. PEERJS (Stable Handshake) ---
         const peer = new Peer();
         peer.on('open', id => document.getElementById('stark-id').innerText = id);
         peer.on('connection', conn => {
             document.getElementById('link-status').innerText = "REMOTE: LINKED";
-            speak("Neural link established. We are live.");
-            
-            conn.on('data', data => {
-                document.getElementById('convo-log').innerHTML += `<br>>> REMOTE_CMD: ${JSON.stringify(data)}`;
-                // Rotation/Zoom sync
-                if(suitPoints && data.ry !== undefined) {
-                    suitPoints.rotation.y = data.ry;
-                    suitPoints.rotation.x = data.rx;
-                    suitPoints.scale.setScalar(data.zoom || 1);
-                }
-            });
+            speak("External link active.");
         });
 
         function copyID() {
             const id = document.getElementById('stark-id').innerText;
             navigator.clipboard.writeText(id);
-            speak("I D copied to clipboard.");
+            speak("I D copied.");
         }
     </script>
 </body>
