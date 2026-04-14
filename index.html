@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS V8.0 | VOLUMETRIC_WORKSHOP</title>
+    <title>AEGIS V9.0 | VOLUMETRIC_CORE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
@@ -14,25 +14,26 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         .boot-btn { border: 1px solid #00e5ff; padding: 20px; background: transparent; color: #00e5ff; cursor: pointer; letter-spacing: 5px; font-family: inherit; }
-        /* The Glow Filter */
-        canvas { filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.5)); }
+        #log { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(0, 229, 255, 0.4); }
     </style>
 </head>
 <body>
 
     <div id="overlay" onclick="bootSystem()">
-        <button class="boot-btn">SYNC_VOLUMETRIC_SUIT</button>
+        <button class="boot-btn">RESTORE_FRIDAY_VOICE_&_STARK_HOLO</button>
     </div>
 
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V8.0</div>
-        <div>SCAN: POINT_CLOUD_ACTIVE</div>
+        <div>SYSTEM: AEGIS_V9.0</div>
+        <div>SCAN: IMAGE_TO_PARTICLE_MAPPING</div>
     </div>
 
     <div class="hud bottom-left">
         <div>LOC: TIRUCHIRAPPALLI, IN</div>
         <div>OPERATOR: B.Sc. PHYSICS</div>
     </div>
+
+    <div id="log">>> SYSTEM_OFFLINE</div>
 
     <script>
         let isBooted = false;
@@ -42,95 +43,97 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- THE VOLUMETRIC CORE ---
-        let particles;
-        const loader = new THREE.TextureLoader();
-        
-        // Using your suit.png to map the points
-        loader.load('suit.png', function(texture) {
-            const count = 15000; // Total glowing points
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(count * 3);
-            const opacity = new Float32Array(count);
+        // --- 1. THE VOICE RESTORATION ---
+        function speakFriday(text) {
+            window.speechSynthesis.cancel(); // Clear previous queue
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voices = window.speechSynthesis.getVoices();
+            // Force a female British voice if possible
+            utterance.voice = voices.find(v => v.lang.includes('en-GB') && v.name.includes('Female')) || voices[0];
+            utterance.pitch = 1.2;
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+            document.getElementById('log').innerHTML = ">> FRIDAY: " + text;
+        }
 
-            for (let i = 0; i < count; i++) {
-                // We create a humanoid silhouette using mathematical clusters
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos((Math.random() * 2) - 1);
+        // --- 2. IMAGE-TO-3D PARTICLE MAPPING ---
+        function createHologram() {
+            const loader = new THREE.TextureLoader();
+            loader.load('suit.png', function(texture) {
+                const canvas = document.createElement('canvas');
+                const img = texture.image;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
                 
-                // Distributing points in 3D space to form depth
-                const r = 2.5 + (Math.random() * 0.5); 
-                const x = r * Math.sin(phi) * Math.cos(theta);
-                const y = (Math.random() * 12) - 6; // Height of the suit
-                const z = r * Math.sin(phi) * Math.sin(theta);
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                const positions = [];
+                const colors = [];
 
-                positions[i * 3] = x;
-                positions[i * 3 + 1] = y;
-                positions[i * 3 + 2] = z;
-                opacity[i] = Math.random();
-            }
+                // Skip pixels to keep performance smooth (every 4th pixel)
+                for (let y = 0; y < canvas.height; y += 4) {
+                    for (let x = 0; x < canvas.width; x += 4) {
+                        const index = (y * canvas.width + x) * 4;
+                        const r = imgData[index];
+                        const g = imgData[index+1];
+                        const b = imgData[index+2];
+                        const avg = (r + g + b) / 3;
 
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            
-            // This material makes each dot look like a glowing light source
-            const material = new THREE.PointsMaterial({ 
-                color: 0x00e5ff, 
-                size: 0.04, 
-                transparent: true, 
-                blending: THREE.AdditiveBlending,
-                depthWrite: false 
+                        if (avg > 30) { // Only map the "glowing" parts of your PNG
+                            const posX = (x - canvas.width / 2) / 30;
+                            const posY = -(y - canvas.height / 2) / 30;
+                            const posZ = (Math.random() - 0.5) * 1.5; // Adds 3D thickness
+
+                            positions.push(posX, posY, posZ);
+                            colors.push(r/255, g/255, b/255);
+                        }
+                    }
+                }
+
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+                const material = new THREE.PointsMaterial({ 
+                    size: 0.05, 
+                    vertexColors: true, 
+                    transparent: true, 
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending 
+                });
+
+                const points = new THREE.Points(geometry, material);
+                scene.add(points);
+                
+                window.holoSuit = points;
             });
+        }
 
-            particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-
-            // Add an inner "Power Core" light
-            const coreLight = new THREE.PointLight(0x00e5ff, 2, 10);
-            scene.add(coreLight);
-        });
-
-        // Floor Grid (Stark Lab Style)
-        const grid = new THREE.GridHelper(30, 40, 0x004444, 0x002222);
-        grid.position.y = -7;
+        const grid = new THREE.GridHelper(20, 20, 0x00e5ff, 0x002222);
+        grid.position.y = -6;
         scene.add(grid);
 
         camera.position.z = 12;
-        camera.position.y = 2;
 
         function bootSystem() {
             if (isBooted) return;
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
-            // Start FRIDAY's greeting
-            const greet = new SpeechSynthesisUtterance("Welcome home, Boss. Volumetric projection stabilized.");
-            greet.pitch = 1.2;
-            window.speechSynthesis.speak(greet);
+            createHologram();
+            speakFriday("Welcome home, Boss. Mapping image data to volumetric particles now.");
         }
 
         function animate() {
             requestAnimationFrame(animate);
             const time = Date.now() * 0.001;
-
-            if (particles) {
-                // Rotation like in the workshop video
-                particles.rotation.y += 0.005;
-                
-                // Subtle flicker effect to simulate data streaming
-                particles.material.opacity = 0.6 + Math.sin(time * 10) * 0.1;
-                
-                // Floating effect
-                particles.position.y = Math.sin(time) * 0.1;
+            if (window.holoSuit) {
+                window.holoSuit.rotation.y += 0.005;
+                window.holoSuit.position.y = Math.sin(time) * 0.2;
             }
-
             renderer.render(scene, camera);
         }
         animate();
-
-        window.onresize = () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        };
     </script>
 </body>
 </html>
