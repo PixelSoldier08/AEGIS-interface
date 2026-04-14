@@ -3,46 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AEGIS V6.0 | FRIDAY INTEGRATED</title>
+    <title>AEGIS | Integrated Friday Core</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
         
-        /* HUD UI */
+        /* HUD UI Elements */
         .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; pointer-events: none; }
         .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #00e5ff; padding-right: 10px; }
         .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #00e5ff; padding-left: 10px; }
         
-        /* Loading & Unlock Overlay */
+        /* System Log */
+        #log-screen { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(0, 229, 255, 0.4); z-index: 100; height: 100px; overflow: hidden;}
+
+        /* Boot Overlay */
         #overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         .boot-btn { 
-            border: 1px solid #00e5ff; padding: 20px; background: transparent; 
-            color: #00e5ff; cursor: pointer; letter-spacing: 5px; font-family: inherit;
-            animation: pulse 2s infinite;
+            border: 1px solid #00e5ff; padding: 20px; background: transparent; color: #00e5ff; 
+            cursor: pointer; letter-spacing: 5px; font-family: inherit; transition: 0.3s;
         }
-        @keyframes pulse { 0%, 100% { box-shadow: 0 0 5px #00e5ff; } 50% { box-shadow: 0 0 20px #00e5ff; } }
+        .boot-btn:hover { background: rgba(0, 229, 255, 0.1); box-shadow: 0 0 15px #00e5ff; }
 
-        #log-screen { 
-            position: fixed; bottom: 80px; left: 30px; font-size: 11px; 
-            color: rgba(0, 229, 255, 0.4); z-index: 100; max-height: 120px; overflow: hidden; 
-        }
+        /* Hologram Scanlines */
         .scanlines { position: fixed; inset: 0; background: linear-gradient(to bottom, transparent 50%, rgba(0, 229, 255, 0.02) 50%); background-size: 100% 4px; pointer-events: none; z-index: 50; }
     </style>
 </head>
 <body>
 
     <div id="overlay" onclick="bootSystem()">
-        <button class="boot-btn">INITIALIZE_FRIDAY_PROTOCOL</button>
-        <p style="font-size: 8px; margin-top: 15px; color: #444;">[ BIOMETRIC SCAN REQUIRED ]</p>
+        <button class="boot-btn">INITIALIZE_FRIDAY_INTEGRATION</button>
     </div>
 
     <div class="scanlines"></div>
 
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V6.0_INTEGRATED</div>
+        <div>SYSTEM: AEGIS_V6.0_STABLE</div>
         <div>OS: FRIDAY_PERSONALITY_CORE</div>
     </div>
 
@@ -51,7 +49,7 @@
         <div>OPERATOR: B.Sc. PHYSICS</div>
     </div>
 
-    <div id="log-screen">>> SYSTEM_STANDBY...</div>
+    <div id="log-screen">>> STANDBY...</div>
 
     <script>
         let isBooted = false;
@@ -59,22 +57,22 @@
         let lastCommandTime = 0;
         const log = document.getElementById('log-screen');
 
-        // --- 1. DIALOGUE DATABASE ---
+        // --- 1. FRIDAY DIALOGUE & VOICE ---
         const dialogues = {
-            status: ["Systems nominal. Hologram integrity is stable at 98%.", "All sectors green, Boss. The core is behaving itself.", "We're online and optimized. Ready when you are."],
-            physics: ["Gravity in Tiruchirappalli is holding steady. No anomalies.", "Space-time curvature is within normal parameters today.", "Thermodynamics modules are active. Entropy is under control."],
-            general: ["Always a pleasure, Boss.", "At your service. What's the next move?", "I'm monitoring the grid. Everything looks sharp."]
+            status: ["All systems nominal. Hologram projection is stable.", "Internal metrics are green. Core containment at 99%.", "Systems optimized. Ready for the next directive, Boss."],
+            physics: ["Gravity constant is verified at 9.8. No space-time anomalies in Tiruchirappalli.", "Physics modules synced. Space-time curvature remains within normal parameters.", "Entropy levels are stable. Ready for some mathematical modeling."],
+            general: ["Always a pleasure, Boss.", "At your service. Monitoring the grid.", "Good to see you. Physics department looking sharp today."]
         };
 
         function getRandom(type) { return dialogues[type][Math.floor(Math.random() * dialogues[type].length)]; }
 
-        // --- 2. VOICE & SPEECH ---
         function speakFriday(text) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
+            // Aim for UK Female voice for Friday
             utterance.voice = voices.find(v => v.lang.includes('en-GB') && v.name.includes('Female')) || voices[0];
-            utterance.pitch = 1.2;
+            utterance.pitch = 1.25;
             utterance.rate = 1.05;
             utterance.onstart = () => { fridayIsSpeaking = true; };
             utterance.onend = () => { setTimeout(() => { fridayIsSpeaking = false; }, 800); };
@@ -82,6 +80,7 @@
             log.innerHTML += `<br>>> FRIDAY: ${text}`;
         }
 
+        // --- 2. MICROPHONE LISTENER ---
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const mic = new Recognition();
         mic.continuous = true;
@@ -97,51 +96,64 @@
             if (cmd.includes("status") || cmd.includes("report")) speakFriday(getRandom('status'));
             else if (cmd.includes("physics") || cmd.includes("gravity")) speakFriday(getRandom('physics'));
             else if (cmd.includes("friday") || cmd.includes("hello")) speakFriday(getRandom('general'));
-            else if (cmd.includes("who are you")) speakFriday("I'm Friday. Your autonomous physics assistant.");
         };
 
-        // --- 3. 3D HOLOGRAM ENGINE ---
+        // --- 3. 3D HOLOGRAM (Cylinder Projection) ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // Loading the suit.png directly from your local folder
         const loader = new THREE.TextureLoader();
-        const suitTexture = loader.load('suit.png'); // Ensure your file is named suit.png
+        const hologramTexture = loader.load('suit.png'); 
 
-        const spriteMat = new THREE.SpriteMaterial({ 
-            map: suitTexture, 
+        const holoGeo = new THREE.CylinderGeometry(2.5, 2.5, 9, 32, 1, true); 
+        const holoMat = new THREE.MeshBasicMaterial({ 
+            map: hologramTexture, 
             transparent: true, 
-            opacity: 0.85, 
-            blending: THREE.AdditiveBlending 
+            opacity: 0.9, 
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false 
         });
-        const hologram = new THREE.Sprite(spriteMat);
-        hologram.scale.set(6, 10, 1);
-        scene.add(hologram);
+        
+        const projection = new THREE.Mesh(holoGeo, holoMat);
+        scene.add(projection);
 
+        // Core Singularity (Central Glow)
         const core = new THREE.Mesh(
             new THREE.SphereGeometry(0.15, 32, 32),
             new THREE.MeshBasicMaterial({ color: 0xffffff })
         );
         scene.add(core);
 
-        camera.position.z = 8;
+        camera.position.z = 10;
 
         function bootSystem() {
             if (isBooted) return;
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
-            speakFriday("Aegis online. All systems integrated. Ready to work, Boss.");
+            speakFriday("Aegis online. Systems integrated. Holographic core stabilized.");
             mic.start();
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            const t = Date.now() * 0.002;
-            hologram.position.y = Math.sin(t) * 0.15;
-            core.position.y = hologram.position.y;
-            core.scale.setScalar(1 + Math.sin(t * 2) * 0.2);
+            const time = Date.now() * 0.001;
+            
+            // Mathematically precise rotation
+            projection.rotation.y += 0.01;
+            
+            // Subtle floating effect
+            projection.position.y = Math.sin(time) * 0.2;
+            core.position.y = projection.position.y;
+            
+            // Pulse the core
+            const s = 1 + Math.sin(time * 3) * 0.2;
+            core.scale.set(s, s, s);
+
             renderer.render(scene, camera);
         }
         animate();
