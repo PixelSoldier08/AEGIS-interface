@@ -2,91 +2,79 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | WORKSHOP_HOST_V2.2</title>
+    <title>AEGIS | CORE_INTERFACE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
-        #log { position: fixed; bottom: 30px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.8); z-index: 10; }
-        #peer-id { 
-            position: fixed; top: 20px; left: 20px; background: rgba(255,170,0,0.1); 
-            padding: 10px; border: 1px solid #ffaa00; z-index: 10; cursor: pointer;
-        }
-        #peer-id:hover { background: rgba(255,170,0,0.3); }
+        body { margin: 0; background: #000; color: #ffaa00; font-family: 'Courier New', monospace; overflow: hidden; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .widget { position: absolute; padding: 15px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.1); pointer-events: auto; z-index: 100; }
+        #stark-id-box { top: 20px; left: 20px; font-size: 0.8em; }
+        #convo-widget { bottom: 20px; right: 20px; width: 300px; height: 150px; overflow-y: auto; }
+        #status-link { top: 20px; right: 20px; color: #00ff00; }
     </style>
 </head>
-<body>
-    <div id="peer-id" onclick="copyID()">CONNECTING TO STARK_NET...</div>
-    <div id="log">>> WAITING FOR MOBILE LINK...</div>
+<body onclick="initAudio()">
+    <div id="ui-layer">
+        <div id="stark-id-box" class="widget">STARK_ID: <span id="my-id">GENERATING...</span></div>
+        <div id="status-link" class="widget">LINK_STATUS: OFFLINE</div>
+        <div id="convo-widget" class="widget">>> SYSTEM_READY...<br>>> CLICK TO INITIALIZE VOICE</div>
+    </div>
 
     <script>
+        // --- 1. THE VOICE (FRIDAY) ---
+        let audioInitialized = false;
+        function speak(text) {
+            if (!audioInitialized) return;
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.rate = 1.1; 
+            msg.pitch = 1.2; // Slightly higher for the "FRIDAY" feel
+            window.speechSynthesis.speak(msg);
+            document.getElementById('convo-widget').innerHTML += `<br>>> FRIDAY: ${text}`;
+        }
+
+        function initAudio() {
+            if (audioInitialized) return;
+            audioInitialized = true;
+            speak("Neural link initialized. FRIDAY is online.");
+        }
+
+        // --- 2. THE HOLOGRAM ---
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        function copyID() {
-            const idText = document.getElementById('peer-id').innerText.replace("STARK_ID: ", "");
-            navigator.clipboard.writeText(idText);
-            document.getElementById('log').innerHTML = ">> ID_COPIED_TO_CLIPBOARD";
-        }
-
-        const peer = new Peer(); 
-        peer.on('open', (id) => {
-            document.getElementById('peer-id').innerHTML = "STARK_ID: " + id;
-        });
-
-        peer.on('connection', (conn) => {
-            document.getElementById('log').innerHTML = ">> MOBILE_LINK_ESTABLISHED";
-            conn.on('data', (data) => {
-                if(window.holoSuit) {
-                    window.holoSuit.rotation.y = data.ry;
-                    window.holoSuit.rotation.x = data.rx;
-                    window.holoSuit.scale.setScalar(data.zoom);
-                }
-            });
-        });
-
-        function createHologram() {
-            const loader = new THREE.TextureLoader();
-            loader.load('suit.png', function(texture) {
-                const canvas = document.createElement('canvas');
-                const img = texture.image;
-                canvas.width = img.width; canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                const positions = [], colors = [];
-
-                for (let y = 0; y < canvas.height; y += 2) {
-                    for (let x = 0; x < canvas.width; x += 2) {
-                        const i = (y * canvas.width + x) * 4;
-                        if (imgData[i+3] > 60) {
-                            positions.push((x - canvas.width/2)/90, -(y - canvas.height/2)/90, (Math.random()-0.5)*0.5);
-                            colors.push(imgData[i]/255, imgData[i+1]/255, imgData[i+2]/255);
-                        }
-                    }
-                }
-                const geometry = new THREE.BufferGeometry();
-                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-                const points = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.02, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending }));
-                scene.add(points);
-                window.holoSuit = points;
-                document.getElementById('log').innerHTML = ">> SUIT_LOADED_SUCCESSFULLY";
-            });
-        }
-
-        camera.position.z = 10;
-        createHologram();
+        // Particle Suit Hologram
+        const geometry = new THREE.SphereGeometry(2, 32, 32);
+        const material = new THREE.PointsMaterial({ color: 0xffaa00, size: 0.05 });
+        const hologram = new THREE.Points(geometry, material);
+        scene.add(hologram);
+        camera.position.z = 5;
 
         function animate() {
             requestAnimationFrame(animate);
-            if(window.holoSuit) window.holoSuit.rotation.y += 0.001;
+            hologram.rotation.y += 0.005;
             renderer.render(scene, camera);
         }
         animate();
+
+        // --- 3. THE NEURAL LINK (PEERJS) ---
+        const peer = new Peer();
+        peer.on('open', (id) => {
+            document.getElementById('my-id').innerText = id;
+        });
+
+        peer.on('connection', (conn) => {
+            document.getElementById('status-link').innerText = "LINK_STATUS: ESTABLISHED";
+            speak("Mobile connection established, Boss.");
+            
+            conn.on('data', (data) => {
+                document.getElementById('convo-widget').innerHTML += `<br>>> CMD: ${data}`;
+                if(data === "STATUS_CHECK") speak("All systems operating within normal parameters.");
+            });
+        });
     </script>
 </body>
 </html>
