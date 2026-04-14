@@ -15,7 +15,7 @@
         #connection-hub { width: 90%; margin: 20px 0; }
         input { 
             width: 100%; padding: 15px; background: #111; border: 1px solid #ffaa00; 
-            color: #ffaa00; border-radius: 5px; text-align: center; font-family: inherit;
+            color: #ffaa00; border-radius: 5px; text-align: center; font-family: inherit; box-sizing: border-box;
         }
         button { 
             width: 100%; margin-top: 10px; padding: 15px; background: #ffaa00; 
@@ -25,52 +25,50 @@
         #link-orb { width: 12px; height: 12px; border-radius: 50%; background: #555; margin-right: 10px; }
         #status-text { font-size: 11px; letter-spacing: 1px; color: #ffaa00; }
         #pad { 
-            width: 92vw; height: 50vh; border: 1px solid rgba(255, 170, 0, 0.3); 
-            border-radius: 15px; background: radial-gradient(circle, rgba(255,170,0,0.03) 0%, rgba(0,0,0,1) 90%);
-            touch-action: none;
+            width: 90vw; height: 50vh; border: 1px solid rgba(255, 170, 0, 0.2); 
+            border-radius: 15px; background: radial-gradient(circle, rgba(255,170,0,0.05) 0%, rgba(0,0,0,1) 80%);
+            touch-action: none; display: flex; align-items: center; justify-content: center;
         }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <div id="header">AEGIS REMOTE V22.0</div>
+    <div id="header">AEGIS_REMOTE_V22</div>
 
     <div id="connection-hub">
-        <input type="text" id="targetId" placeholder="PASTE_STARK_ID_HERE">
-        <button onclick="connectToPC()">ESTABLISH LINK</button>
+        <input type="text" id="targetId" placeholder="PASTE_STARK_ID">
+        <button onclick="connectToPC()">ESTABLISH_LINK</button>
     </div>
 
     <div id="status-container">
         <div id="link-orb"></div>
-        <span id="status-text">>> SYSTEM_IDLE</span>
+        <span id="status-text">SYSTEM_IDLE</span>
     </div>
 
-    <div id="pad"></div>
+    <div id="pad">READY_FOR_GESTURES</div>
 
     <script>
         const peer = new Peer();
         let conn;
-        let rotationX = 0, rotationY = 0, zoom = 1, startX = 0, startY = 0, initialDist = 0;
+        let rx = 0, ry = 0, zoom = 1, startX = 0, startY = 0, initialDist = 0;
 
         function connectToPC() {
             const id = document.getElementById('targetId').value.trim();
-            if (!id) return;
-            
             const orb = document.getElementById('link-orb');
             const txt = document.getElementById('status-text');
-            txt.innerHTML = ">> ATTEMPTING_LINK...";
+            
+            txt.innerHTML = "ATTEMPTING_LINK...";
             orb.style.animation = "pulse 1s infinite";
             orb.style.background = "#ffaa00";
 
-            conn = peer.connect(id, { reliable: true, serialization: 'json' });
+            conn = peer.connect(id, { reliable: true });
             conn.on('open', () => {
-                txt.innerHTML = ">> LINK_LOCKED_ACTIVE";
+                txt.innerHTML = "LINK_ACTIVE";
                 txt.style.color = "#00ff00";
                 orb.style.background = "#00ff00";
                 orb.style.animation = "none";
-                orb.style.boxShadow = "0 0 15px #00ff00";
-                document.getElementById('connection-hub').style.opacity = '0.2';
+                document.getElementById('connection-hub').style.opacity = '0.1';
             });
         }
 
@@ -80,16 +78,15 @@
             e.preventDefault(); 
             if (!conn || !conn.open) return;
             if (e.touches.length === 1) {
-                let touch = e.touches[0];
-                rotationY += (touch.clientX - startX) * 0.008; 
-                rotationX += (touch.clientY - startY) * 0.008;
-                startX = touch.clientX; startY = touch.clientY;
+                ry += (e.touches[0].clientX - startX) * 0.01; 
+                rx += (e.touches[0].clientY - startY) * 0.01;
+                startX = e.touches[0].clientX; startY = e.touches[0].clientY;
             } else if (e.touches.length === 2) {
                 let dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
                 if (initialDist === 0) initialDist = dist;
-                else { zoom = Math.min(Math.max(0.3, zoom + (dist - initialDist) * 0.005), 4.0); initialDist = dist; }
+                else { zoom = Math.min(Math.max(0.5, zoom + (dist - initialDist) * 0.005), 3.0); initialDist = dist; }
             }
-            conn.send({ rx: rotationX, ry: rotationY, zoom: zoom });
+            conn.send({ rx: rx, ry: ry, zoom: zoom });
         }, { passive: false });
         pad.addEventListener('touchend', () => { initialDist = 0; });
     </script>
