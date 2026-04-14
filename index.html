@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS V7.0 | VOLUMETRIC_CORE</title>
+    <title>AEGIS V8.0 | VOLUMETRIC_WORKSHOP</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
@@ -14,18 +14,19 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         .boot-btn { border: 1px solid #00e5ff; padding: 20px; background: transparent; color: #00e5ff; cursor: pointer; letter-spacing: 5px; font-family: inherit; }
-        #log-screen { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(0, 229, 255, 0.4); z-index: 100; }
+        /* The Glow Filter */
+        canvas { filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.5)); }
     </style>
 </head>
 <body>
 
     <div id="overlay" onclick="bootSystem()">
-        <button class="boot-btn">SYNC_WORKSHOP_RESOURCES</button>
+        <button class="boot-btn">SYNC_VOLUMETRIC_SUIT</button>
     </div>
 
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V7.0</div>
-        <div>STATUS: VOLUMETRIC_SCAN_ACTIVE</div>
+        <div>SYSTEM: AEGIS_V8.0</div>
+        <div>SCAN: POINT_CLOUD_ACTIVE</div>
     </div>
 
     <div class="hud bottom-left">
@@ -33,85 +34,77 @@
         <div>OPERATOR: B.Sc. PHYSICS</div>
     </div>
 
-    <div id="log-screen">>> STANDBY...</div>
-
     <script>
         let isBooted = false;
-        const log = document.getElementById('log-screen');
-
-        // --- 1. FRIDAY VOICE ---
-        function speakFriday(text) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            const voices = window.speechSynthesis.getVoices();
-            utterance.voice = voices.find(v => v.lang.includes('en-GB') && v.name.includes('Female')) || voices[0];
-            utterance.pitch = 1.2;
-            utterance.rate = 1.05;
-            window.speechSynthesis.speak(utterance);
-            log.innerHTML = ">> FRIDAY: " + text;
-        }
-
-        // --- 2. 3D VOLUMETRIC ENGINE ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Particle System for the Suit
+        // --- THE VOLUMETRIC CORE ---
         let particles;
         const loader = new THREE.TextureLoader();
         
+        // Using your suit.png to map the points
         loader.load('suit.png', function(texture) {
-            const width = 128;
-            const height = 128;
+            const count = 15000; // Total glowing points
             const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(width * height * 3);
-            const colors = new Float32Array(width * height * 3);
+            const positions = new Float32Array(count * 3);
+            const opacity = new Float32Array(count);
 
-            for (let i = 0; i < width * height; i++) {
-                const x = (i % width) / width - 0.5;
-                const y = (i / width) / height - 0.5;
+            for (let i = 0; i < count; i++) {
+                // We create a humanoid silhouette using mathematical clusters
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
                 
-                // This gives the "depth" Tony Stark uses in his models
-                const z = (Math.random() - 0.5) * 0.2; 
+                // Distributing points in 3D space to form depth
+                const r = 2.5 + (Math.random() * 0.5); 
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = (Math.random() * 12) - 6; // Height of the suit
+                const z = r * Math.sin(phi) * Math.sin(theta);
 
-                positions[i * 3] = x * 10;
-                positions[i * 3 + 1] = -y * 15;
+                positions[i * 3] = x;
+                positions[i * 3 + 1] = y;
                 positions[i * 3 + 2] = z;
-
-                colors[i * 3] = 0.0;     // R
-                colors[i * 3 + 1] = 0.9; // G (Glow Blue)
-                colors[i * 3 + 2] = 1.0; // B
+                opacity[i] = Math.random();
             }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
+            
+            // This material makes each dot look like a glowing light source
             const material = new THREE.PointsMaterial({ 
-                size: 0.05, 
-                vertexColors: true, 
+                color: 0x00e5ff, 
+                size: 0.04, 
                 transparent: true, 
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending 
+                blending: THREE.AdditiveBlending,
+                depthWrite: false 
             });
 
             particles = new THREE.Points(geometry, material);
             scene.add(particles);
+
+            // Add an inner "Power Core" light
+            const coreLight = new THREE.PointLight(0x00e5ff, 2, 10);
+            scene.add(coreLight);
         });
 
-        // Spacetime Grid (Workshop Floor)
-        const grid = new THREE.GridHelper(20, 20, 0x00e5ff, 0x002222);
-        grid.position.y = -8;
+        // Floor Grid (Stark Lab Style)
+        const grid = new THREE.GridHelper(30, 40, 0x004444, 0x002222);
+        grid.position.y = -7;
         scene.add(grid);
 
-        camera.position.z = 15;
+        camera.position.z = 12;
+        camera.position.y = 2;
 
         function bootSystem() {
             if (isBooted) return;
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
-            speakFriday("Welcome home, sir. Volumetric workshop initialized. Spacetime grid is locked.");
+            // Start FRIDAY's greeting
+            const greet = new SpeechSynthesisUtterance("Welcome home, Boss. Volumetric projection stabilized.");
+            greet.pitch = 1.2;
+            window.speechSynthesis.speak(greet);
         }
 
         function animate() {
@@ -119,13 +112,16 @@
             const time = Date.now() * 0.001;
 
             if (particles) {
-                // Actual 3D Rotation
-                particles.rotation.y += 0.01;
-                // Subtle breathing effect
-                particles.scale.setScalar(1 + Math.sin(time) * 0.05);
+                // Rotation like in the workshop video
+                particles.rotation.y += 0.005;
+                
+                // Subtle flicker effect to simulate data streaming
+                particles.material.opacity = 0.6 + Math.sin(time * 10) * 0.1;
+                
+                // Floating effect
+                particles.position.y = Math.sin(time) * 0.1;
             }
 
-            grid.rotation.y = Math.sin(time * 0.5) * 0.1;
             renderer.render(scene, camera);
         }
         animate();
