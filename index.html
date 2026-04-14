@@ -3,46 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AEGIS V6.0 | FRIDAY Interface</title>
+    <title>AEGIS V6.0 | FRIDAY AI</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
+        body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; cursor: crosshair; }
         
         /* HUD Widgets */
         .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; pointer-events: none; }
         .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #00e5ff; padding-right: 10px; }
         .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #00e5ff; padding-left: 10px; }
 
-        /* Loading Screen */
-        #loading-overlay {
-            position: fixed; inset: 0; background: #000; z-index: 200;
+        /* Interaction Overlay */
+        #overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 1s ease;
+            transition: opacity 1s;
         }
-        #bar-container { width: 250px; height: 1px; background: #111; margin-top: 20px; }
-        #bar { width: 0%; height: 100%; background: #00e5ff; box-shadow: 0 0 15px #00e5ff; }
+        .pulse-text { animation: pulse 2s infinite; letter-spacing: 5px; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
         #canvas-container { position: absolute; inset: 0; z-index: 1; }
-        
-        /* Digital Scanline Filter */
-        .scanline {
-            width: 100%; height: 100%; position: absolute; z-index: 10;
-            background: linear-gradient(to bottom, transparent 50%, rgba(0, 229, 255, 0.03) 50%);
-            background-size: 100% 4px; pointer-events: none;
-        }
+        #log-screen { position: fixed; bottom: 80px; left: 30px; font-size: 12px; color: rgba(0, 229, 255, 0.5); z-index: 100; }
     </style>
 </head>
 <body>
 
-    <div id="loading-overlay">
-        <div style="letter-spacing: 8px; font-size: 12px; font-weight: bold;">LINKING_FRIDAY_MODULE</div>
-        <div id="bar-container"><div id="bar"></div></div>
+    <div id="overlay" onclick="bootSystem()">
+        <div class="pulse-text"> [ CLICK TO INITIALIZE FRIDAY ] </div>
+        <div id="status" style="margin-top: 20px; font-size: 10px;">IDLE_WAITING_FOR_OPERATOR</div>
     </div>
 
-    <div class="scanline"></div>
-
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V6.0_PROTOTYPE</div>
+        <div>SYSTEM: AEGIS_V6.0_STABLE</div>
         <div>OS: FRIDAY_PERSONALITY_CORE</div>
     </div>
 
@@ -51,56 +43,70 @@
         <div>OPERATOR: B.Sc. PHYSICS</div>
     </div>
 
+    <div id="log-screen"></div>
     <div id="canvas-container"></div>
 
     <script>
-        // --- 1. FRIDAY BOOT & VOCAL PROTOCOL ---
-        let progress = 0;
-        const bar = document.getElementById('bar');
-        
-        const loadInterval = setInterval(() => {
-            progress += Math.random() * 5;
-            if (progress > 100) progress = 100;
-            bar.style.width = progress + "%";
+        let isBooted = false;
+        const log = document.getElementById('log-screen');
+
+        // --- 1. FRIDAY VOICE & EARS (Speech) ---
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const mic = new Recognition();
+        mic.continuous = true;
+        mic.interimResults = false;
+
+        function bootSystem() {
+            if (isBooted) return;
+            isBooted = true;
+            document.getElementById('overlay').style.opacity = '0';
+            setTimeout(() => document.getElementById('overlay').remove(), 1000);
             
-            if(progress >= 100) {
-                clearInterval(loadInterval);
-                const overlay = document.getElementById('loading-overlay');
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    overlay.remove();
-                    speakFriday("Aegis updated and ready for a spin, Boss. Physics modules are synced and looking sharp.");
-                }, 1000);
-            }
-        }, 70);
+            speakFriday("System online. Good evening, Boss. I'm monitoring the core and listening for your commands.");
+            mic.start();
+        }
 
         function speakFriday(text) {
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
-            
-            // Search for a crisp UK/Female voice for the FRIDAY vibe
-            const fridayVoice = voices.find(v => v.name.includes('Female') && (v.lang.includes('en-GB') || v.lang.includes('en-IE'))) || voices[0];
-            
-            utterance.voice = fridayVoice;
-            utterance.pitch = 1.25; // Snappy and energetic
-            utterance.rate = 1.05; 
+            // Aim for UK Female voice
+            utterance.voice = voices.find(v => v.name.includes('Female') && v.lang.includes('en-GB')) || voices[0];
+            utterance.pitch = 1.2;
+            utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);
+            log.innerHTML = "> FRIDAY: " + text;
         }
 
-        // --- 2. 3D CORE RENDERING (Three.js) ---
+        mic.onresult = (event) => {
+            const command = event.results[event.results.length - 1][0].transcript.toLowerCase();
+            log.innerHTML = "> USER: " + command;
+            handleCommand(command);
+        };
+
+        function handleCommand(cmd) {
+            if (cmd.includes("status")) {
+                speakFriday("All systems are green. The singularity is stable at thirty degrees.");
+            } else if (cmd.includes("hello") || cmd.includes("friday")) {
+                speakFriday("At your service, Boss. What's on the schedule?");
+            } else if (cmd.includes("physics")) {
+                speakFriday("The laws of the universe are still holding up perfectly in Tiruchirappalli.");
+            } else if (cmd.includes("time")) {
+                speakFriday("It's currently " + new Date().toLocaleTimeString());
+            }
+        }
+
+        // --- 2. 3D CORE ENGINE (Three.js) ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        // Geometric Lattice (The Body)
         const geometry = new THREE.IcosahedronGeometry(2, 2);
-        const material = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true, transparent: true, opacity: 0.5 });
+        const material = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true, transparent: true, opacity: 0.4 });
         const sphere = new THREE.Mesh(geometry, material);
         scene.add(sphere);
 
-        // The Singularity (The Heart)
         const coreGeo = new THREE.SphereGeometry(0.4, 32, 32);
         const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const core = new THREE.Mesh(coreGeo, coreMat);
@@ -108,38 +114,19 @@
 
         camera.position.z = 5;
 
-        // Mouse Interaction
-        let mouseX = 0, mouseY = 0;
-        document.addEventListener('mousemove', (e) => {
-            mouseX = (e.clientX - window.innerWidth / 2) / 150;
-            mouseY = (e.clientY - window.innerHeight / 2) / 150;
-        });
-
-        // --- 3. ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
             const time = Date.now() * 0.001;
-
-            // Autonomous Rotations
-            sphere.rotation.y += 0.008;
-            sphere.rotation.x += 0.003;
-
-            // Subtle Floating & Mouse Follow
-            sphere.position.x += (mouseX - sphere.position.x) * 0.05;
-            sphere.position.y += (-mouseY - sphere.position.y) * 0.05;
-            sphere.position.y += Math.sin(time) * 0.05; // Floating effect
-
+            sphere.rotation.y += 0.005;
+            sphere.rotation.x += 0.002;
+            sphere.position.y = Math.sin(time) * 0.1;
             core.position.copy(sphere.position);
-
-            // The Pulse: Breathing core effect
-            const pulse = 0.4 + Math.sin(time * 3) * 0.06;
+            const pulse = 0.4 + Math.sin(time * 3) * 0.05;
             core.scale.set(pulse, pulse, pulse);
-
             renderer.render(scene, camera);
         }
         animate();
 
-        // Responsive Resizing
         window.onresize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
