@@ -2,77 +2,101 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | 3D KINETIC INTERFACE</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <title>AEGIS | System Restored</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; color: #00e5ff; }
-        #hud { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        .widget { position: absolute; padding: 20px; text-transform: uppercase; font-size: 12px; letter-spacing: 2px; }
-        .top-right { top: 0; right: 0; text-align: right; border-right: 3px solid #00e5ff; }
-        .bottom-left { bottom: 0; left: 0; border-left: 3px solid #00e5ff; }
+        body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
+        
+        /* Loading Overlay */
+        #loading-screen {
+            position: fixed; inset: 0; background: #000; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        /* HUD Widgets (CMD look) */
+        .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 50; }
+        .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #00e5ff; padding-right: 10px; }
+        .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #00e5ff; padding-left: 10px; }
+
+        /* The 3D Core Container */
+        #canvas-container { 
+            position: absolute; inset: 0; display: flex; 
+            justify-content: center; align-items: center; 
+        }
+
+        .scanline {
+            width: 100%; height: 2px; background: rgba(0, 229, 255, 0.1);
+            position: absolute; animation: scan 4s linear infinite;
+        }
+        @keyframes scan { from { top: 0%; } to { top: 100%; } }
     </style>
 </head>
 <body>
-    <div id="hud">
-        <div class="widget top-right">
-            SYSTEM: AEGIS_v6.0_PROTOTYPE<br>STATUS: KINETIC_LINK_3D
-        </div>
-        <div class="widget bottom-left">
-            LOC: TIRUCHIRAPPALLI, IN<br>OPERATOR: B.Sc. PHYSICS
+
+    <div id="loading-screen">
+        <div id="loading-text">INITIALIZING AEGIS CORE...</div>
+        <div style="width: 200px; height: 2px; background: #222; margin-top: 10px;">
+            <div id="progress" style="width: 0%; height: 100%; background: #00e5ff;"></div>
         </div>
     </div>
 
+    <div class="scanline"></div>
+
+    <div class="hud top-right">
+        <div>STATUS: KINETIC_LINK_SYNC</div>
+        <div id="cmd-out">> TERMINAL ACTIVE</div>
+    </div>
+
+    <div class="hud bottom-left">
+        <div>OPERATOR: B.Sc. PHYSICS</div>
+        <div>LOC: TIRUCHIRAPPALLI, IN</div>
+    </div>
+
+    <div id="canvas-container">
+        <div id="aegis-label" style="position: absolute; font-size: 14px; letter-spacing: 10px; opacity: 0.5;">AEGIS</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // 1. Loading Process Simulation
+        let prog = 0;
+        const interval = setInterval(() => {
+            prog += 5;
+            document.getElementById('progress').style.width = prog + '%';
+            if (prog >= 100) {
+                clearInterval(interval);
+                document.getElementById('loading-screen').style.display = 'none';
+                startVoice();
+            }
+        }, 100);
+
+        // 2. Voice Restoration
+        function startVoice() {
+            const msg = new SpeechSynthesisUtterance("Aegis online. All systems synchronized. Operator identified.");
+            msg.pitch = 0.8;
+            window.speechSynthesis.speak(msg);
+        }
+
+        // 3. Simple 3D Wireframe (Replacing what was lost)
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        // --- THE 3D CORE ---
-        const geometry = new THREE.IcosahedronGeometry(2, 1); // Fragmented look
-        const material = new THREE.MeshBasicMaterial({ 
-            color: 0x00e5ff, wireframe: true, transparent: true, opacity: 0.6 
-        });
-        const core = new THREE.Mesh(geometry, material);
-        scene.add(core);
+        const geometry = new THREE.IcosahedronGeometry(2, 2);
+        const material = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true });
+        const sphere = new THREE.Mesh(geometry, material);
+        scene.add(sphere);
 
-        // Inner glowing sphere
-        const innerGeo = new THREE.SphereGeometry(0.5, 16, 16);
-        const innerMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
-        const heart = new THREE.Mesh(innerGeo, innerMat);
-        core.add(heart);
-
-        camera.position.z = 10;
-
-        // --- KINETIC LINK ---
-        const socket = io('http://localhost:5000');
-        
-        socket.on('hand_move', (data) => {
-            // Smoothly move the 3D core
-            const targetX = (data.x - 0.5) * 20;
-            const targetY = (0.5 - data.y) * 15;
-            const targetZ = 10 - (data.z * 15); // Z-depth mapping
-
-            core.position.x += (targetX - core.position.x) * 0.1;
-            core.position.y += (targetY - core.position.y) * 0.1;
-            core.position.z += (targetZ - core.position.z) * 0.1;
-        });
+        camera.position.z = 5;
 
         function animate() {
             requestAnimationFrame(animate);
-            core.rotation.y += 0.01;
-            core.rotation.x += 0.005;
+            sphere.rotation.y += 0.005;
+            sphere.rotation.x += 0.002;
             renderer.render(scene, camera);
         }
         animate();
-
-        window.onload = () => {
-            const msg = new SpeechSynthesisUtterance("Aegis 3D kinetic protocol established.");
-            msg.pitch = 0.7;
-            window.speechSynthesis.speak(msg);
-        };
     </script>
 </body>
 </html>
