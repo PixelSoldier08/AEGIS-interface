@@ -2,39 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS V12.0 | KINETIC_INTERFACE</title>
+    <title>AEGIS V13.0 | KINETIC_GRAB</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #ffaa00; font-family: 'Courier New', monospace; overflow: hidden; touch-action: none; }
+        body { margin: 0; background: #000; color: #ffaa00; font-family: 'Courier New', monospace; overflow: hidden; }
         .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; pointer-events: none; }
         .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #ffaa00; padding-right: 10px; }
-        .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #ffaa00; padding-left: 10px; }
         #overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 200;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            display: flex; justify-content: center; align-items: center;
         }
-        .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; cursor: pointer; letter-spacing: 5px; font-family: inherit; }
-        #log { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.6); }
+        .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; cursor: pointer; letter-spacing: 5px; }
+        #log { position: fixed; bottom: 30px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.6); }
     </style>
 </head>
 <body>
 
     <div id="overlay" onclick="bootSystem()">
-        <button class="boot-btn">INITIALIZE_KINETIC_LINK</button>
+        <button class="boot-btn">ENABLE_KINETIC_GRAB</button>
     </div>
 
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V12.0</div>
-        <div>LINK: KINETIC_TOUCH_ENABLED</div>
+        <div>SYSTEM: AEGIS_V13.0</div>
+        <div>MANIPULATION: TRANSFORM_ACTIVE</div>
     </div>
 
-    <div class="hud bottom-left">
-        <div>LOC: TIRUCHIRAPPALLI, IN</div>
-        <div>OPERATOR: B.Sc. PHYSICS</div>
-    </div>
-
-    <div id="log">>> STANDBY_FOR_GESTURE_LINK...</div>
+    <div id="log">>> INITIALIZING_LAB...</div>
 
     <script>
         let isBooted = false;
@@ -44,27 +39,43 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- TONY STARK TOUCH CONTROLS ---
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; // Smooth motion like in the movies
-        controls.dampingFactor = 0.05;
-        controls.screenSpacePanning = false;
-        controls.minDistance = 2; // Prevent zooming inside the suit
-        controls.maxDistance = 20;
+        // --- 1. KINETIC CONTROLS (ORBIT + GRAB) ---
+        const orbit = new THREE.OrbitControls(camera, renderer.domElement);
+        orbit.enableDamping = true;
 
-        // --- FRIDAY CONVERSATION CORE ---
+        const transform = new THREE.TransformControls(camera, renderer.domElement);
+        // Disable orbit when grabbing the suit
+        transform.addEventListener('dragging-changed', (event) => {
+            orbit.enabled = !event.value;
+        });
+        scene.add(transform);
+
+        // --- 2. VOICE CORE ---
         function speakFriday(text) {
-            window.speechSynthesis.cancel(); 
+            window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
-            utterance.voice = voices.find(v => v.lang === 'en-GB' && v.name.includes('Female')) || voices[0];
-            utterance.pitch = 1.25;
-            utterance.onstart = () => { console.log("Friday is speaking..."); };
+            utterance.voice = voices.find(v => v.lang.includes('en-GB')) || voices[0];
+            utterance.pitch = 1.2;
             window.speechSynthesis.speak(utterance);
             document.getElementById('log').innerHTML = ">> FRIDAY: " + text;
         }
 
-        // --- ULTRA-DETAIL MAPPING ---
+        // --- 3. THE CLEAN WORKSHOP BG (No Grid Lines) ---
+        // Instead of a grid, we use a glowing circular "Base"
+        const baseGeo = new THREE.RingGeometry(0, 8, 64);
+        const baseMat = new THREE.MeshBasicMaterial({ 
+            color: 0xffaa00, 
+            transparent: true, 
+            opacity: 0.05, 
+            side: THREE.DoubleSide 
+        });
+        const workshopBase = new THREE.Mesh(baseGeo, baseMat);
+        workshopBase.rotation.x = Math.PI / 2;
+        workshopBase.position.y = -4;
+        scene.add(workshopBase);
+
+        // --- 4. HIGH-DETAIL HOLOGRAPHIC MAPPING ---
         function createHologram() {
             const loader = new THREE.TextureLoader();
             loader.load('suit.png', function(texture) {
@@ -73,54 +84,45 @@
                 canvas.width = img.width; canvas.height = img.height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
-                
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
                 const positions = [], colors = [];
 
-                for (let y = 0; y < canvas.height; y += 1) { // Maximum detail
+                for (let y = 0; y < canvas.height; y += 1) {
                     for (let x = 0; x < canvas.width; x += 1) {
                         const i = (y * canvas.width + x) * 4;
-                        if (imgData[i+3] > 50) {
-                            positions.push((x - canvas.width/2)/90, -(y - canvas.height/2)/90, (Math.random()-0.5)*0.5);
+                        if (imgData[i+3] > 60) {
+                            positions.push((x - canvas.width/2)/85, -(y - canvas.height/2)/85, (Math.random()-0.5)*0.6);
                             colors.push(imgData[i]/255, imgData[i+1]/255, imgData[i+2]/255);
                         }
                     }
                 }
-
                 const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                 geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-                const points = new THREE.Points(geometry, new THREE.PointsMaterial({ 
-                    size: 0.015, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending 
-                }));
-                points.position.y = 2.8;
+                const points = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.02, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+                
+                points.position.y = 2;
                 scene.add(points);
                 window.holoSuit = points;
+                
+                // Attach the "Grab" gizmo to the suit
+                transform.attach(points);
             });
         }
 
-        const grid = new THREE.GridHelper(40, 50, 0xffaa00, 0x110800);
-        grid.position.y = -4;
-        scene.add(grid);
-
-        camera.position.set(0, 2, 10);
+        camera.position.set(0, 2, 12);
 
         function bootSystem() {
             if (isBooted) return;
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
             createHologram();
-            speakFriday("Kinetic link established. You can now manipulate the volumetric model directly, Boss.");
+            speakFriday("Grid lines suppressed. Kinetic grab enabled. You can now physically reposition the model, sir.");
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            controls.update(); // Required for smooth damping
-            if (window.holoSuit) {
-                // Suit only auto-rotates slightly; user has primary control now
-                window.holoSuit.rotation.y += 0.002; 
-            }
+            orbit.update();
             renderer.render(scene, camera);
         }
         animate();
