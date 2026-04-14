@@ -2,41 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | FINAL_RESISTANCE</title>
+    <title>AEGIS | FINAL_RESTORATION</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
         #hud { position: fixed; inset: 0; pointer-events: none; z-index: 100; padding: 25px; }
         .widget { position: absolute; padding: 12px; border: 1px solid rgba(255, 170, 0, 0.4); background: #000; pointer-events: auto; }
-        #stark-id-box { top: 20px; left: 20px; border-left: 4px solid #00ff00; }
-        #convo-log { bottom: 25px; left: 25px; width: 340px; max-height: 150px; overflow-y: auto; font-size: 11px; border-bottom: 2px solid #ffaa00; }
-        #link-status { bottom: 25px; right: 25px; color: #00ff00; border-right: 4px solid #00ff00; }
+        #id-box { top: 20px; left: 20px; border-left: 4px solid #00ff00; font-size: 12px; }
+        #log { bottom: 25px; left: 25px; width: 340px; max-height: 150px; overflow-y: auto; font-size: 11px; border-bottom: 2px solid #ffaa00; }
+        #status { bottom: 25px; right: 25px; color: #00ff00; border-right: 4px solid #00ff00; }
     </style>
 </head>
-<body onclick="start()">
+<body onclick="boot()">
 
     <div id="hud">
-        <div id="stark-id-box" class="widget">ID: <span id="stark-id" style="color:#00ff00; cursor:pointer;">BOOTING...</span></div>
-        <div id="convo-log" class="widget">>> RESET_COMPLETE<br>>> CLICK_SCREEN_TO_WAKE_FRIDAY</div>
-        <div id="link-status" class="widget">OFFLINE</div>
+        <div id="id-box" class="widget">STARK_ID: <span id="stark-id" style="color:#00ff00;">INITIALIZING...</span></div>
+        <div id="log" class="widget">>> AEGIS_CORE_V4.0<br>>> CLICK_SCREEN_TO_WAKE_FRIDAY</div>
+        <div id="status" class="widget">OFFLINE</div>
     </div>
 
     <script>
-        let scene, camera, renderer, points;
-        let voiceReady = false;
+        let scene, camera, renderer, suit;
+        let audioActive = false;
 
         function speak(t) {
-            if(!voiceReady) return;
-            let m = new SpeechSynthesisUtterance(t);
-            m.pitch = 1.1; window.speechSynthesis.speak(m);
-            document.getElementById('convo-log').innerHTML += `<br>>> FRIDAY: ${t}`;
+            if(!audioActive) return;
+            const utter = new SpeechSynthesisUtterance(t);
+            utter.pitch = 1.1; window.speechSynthesis.speak(utter);
+            document.getElementById('log').innerHTML += `<br>>> FRIDAY: ${t}`;
         }
 
-        function start() {
-            if(voiceReady) return;
-            voiceReady = true;
-            speak("Force-clearing visual buffer. Suit restoration in progress.");
+        function boot() {
+            if(audioActive) return;
+            audioActive = true;
+            speak("Force-update successful. Clearing visual noise.");
         }
 
         scene = new THREE.Scene();
@@ -46,35 +46,34 @@
         document.body.appendChild(renderer.domElement);
 
         const loader = new THREE.TextureLoader();
-        // The "./" helps the server locate the file relative to index.html
-        loader.load('./suit.png', (txt) => {
-            const cvs = document.createElement('canvas');
-            const ctx = cvs.getContext('2d');
-            const img = txt.image;
-            cvs.width = img.width; cvs.height = img.height;
+        loader.load('./suit.png', (texture) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = texture.image;
+            canvas.width = img.width; canvas.height = img.height;
             ctx.drawImage(img, 0, 0);
-            const raw = ctx.getImageData(0,0,cvs.width,cvs.height).data;
-            const pts = [];
+            const imgData = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+            const vertices = [];
 
-            for(let y=0; y<cvs.height; y+=6) {
-                for(let x=0; x<cvs.width; x+=6) {
-                    const i = (y * cvs.width + x) * 4;
-                    // ONLY draw pixels that are NOT transparent (Alpha > 100)
-                    if(raw[i+3] > 100) {
-                        pts.push((x-cvs.width/2)*0.07, -(y-cvs.height/2)*0.07, (Math.random()-0.5)*1.5);
+            for(let y=0; y<canvas.height; y+=5) {
+                for(let x=0; x<canvas.width; x+=5) {
+                    const i = (y * canvas.width + x) * 4;
+                    // STRICT FILTER: Only if pixel is NOT transparent
+                    if(imgData[i+3] > 150) { 
+                        vertices.push((x-canvas.width/2)*0.07, -(y-canvas.height/2)*0.07, (Math.random()-0.5)*1.5);
                     }
                 }
             }
             const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-            points = new THREE.Points(geo, new THREE.PointsMaterial({size: 0.1, color: 0xffaa00, transparent: true}));
-            scene.add(points);
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            suit = new THREE.Points(geo, new THREE.PointsMaterial({size: 0.1, color: 0xffaa00, transparent: true}));
+            scene.add(suit);
         });
 
         camera.position.z = 30;
         function animate() {
             requestAnimationFrame(animate);
-            if(points) points.rotation.y += 0.002;
+            if(suit) suit.rotation.y += 0.003;
             renderer.render(scene, camera);
         }
         animate();
@@ -82,7 +81,7 @@
         const peer = new Peer();
         peer.on('open', id => document.getElementById('stark-id').innerText = id);
         peer.on('connection', c => {
-            document.getElementById('link-status').innerText = "LINKED";
+            document.getElementById('status').innerText = "LINKED";
             speak("Remote link established.");
         });
     </script>
