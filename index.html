@@ -2,16 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS V13.0 | KINETIC_GRAB</title>
+    <title>AEGIS V14.0 | NATURAL_INTERACTION</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #ffaa00; font-family: 'Courier New', monospace; overflow: hidden; }
+        body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
         .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; pointer-events: none; }
         .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #ffaa00; padding-right: 10px; }
         #overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 200;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200;
             display: flex; justify-content: center; align-items: center;
         }
         .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; cursor: pointer; letter-spacing: 5px; }
@@ -21,15 +20,15 @@
 <body>
 
     <div id="overlay" onclick="bootSystem()">
-        <button class="boot-btn">ENABLE_KINETIC_GRAB</button>
+        <button class="boot-btn">INITIALIZE_NATURAL_DRAG</button>
     </div>
 
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V13.0</div>
-        <div>MANIPULATION: TRANSFORM_ACTIVE</div>
+        <div>SYSTEM: AEGIS_V14.0</div>
+        <div>INPUT: KINETIC_RAYCAST_ACTIVE</div>
     </div>
 
-    <div id="log">>> INITIALIZING_LAB...</div>
+    <div id="log">>> CALIBRATING_SENSORS...</div>
 
     <script>
         let isBooted = false;
@@ -39,18 +38,18 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 1. KINETIC CONTROLS (ORBIT + GRAB) ---
         const orbit = new THREE.OrbitControls(camera, renderer.domElement);
         orbit.enableDamping = true;
 
-        const transform = new THREE.TransformControls(camera, renderer.domElement);
-        // Disable orbit when grabbing the suit
-        transform.addEventListener('dragging-changed', (event) => {
-            orbit.enabled = !event.value;
-        });
-        scene.add(transform);
+        // --- 1. RAYCASTING FOR NATURAL GRAB ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let isDragging = false;
+        let offset = new THREE.Vector3();
+        let intersectionPoint = new THREE.Vector3();
+        let dragPlane = new THREE.Plane();
 
-        // --- 2. VOICE CORE ---
+        // --- 2. FRIDAY VOICE HANDSHAKE ---
         function speakFriday(text) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
@@ -61,21 +60,7 @@
             document.getElementById('log').innerHTML = ">> FRIDAY: " + text;
         }
 
-        // --- 3. THE CLEAN WORKSHOP BG (No Grid Lines) ---
-        // Instead of a grid, we use a glowing circular "Base"
-        const baseGeo = new THREE.RingGeometry(0, 8, 64);
-        const baseMat = new THREE.MeshBasicMaterial({ 
-            color: 0xffaa00, 
-            transparent: true, 
-            opacity: 0.05, 
-            side: THREE.DoubleSide 
-        });
-        const workshopBase = new THREE.Mesh(baseGeo, baseMat);
-        workshopBase.rotation.x = Math.PI / 2;
-        workshopBase.position.y = -4;
-        scene.add(workshopBase);
-
-        // --- 4. HIGH-DETAIL HOLOGRAPHIC MAPPING ---
+        // --- 3. HIGH-RES VOLUMETRIC MAPPING (Clean BG) ---
         function createHologram() {
             const loader = new THREE.TextureLoader();
             loader.load('suit.png', function(texture) {
@@ -91,7 +76,7 @@
                     for (let x = 0; x < canvas.width; x += 1) {
                         const i = (y * canvas.width + x) * 4;
                         if (imgData[i+3] > 60) {
-                            positions.push((x - canvas.width/2)/85, -(y - canvas.height/2)/85, (Math.random()-0.5)*0.6);
+                            positions.push((x - canvas.width/2)/90, -(y - canvas.height/2)/90, (Math.random()-0.5)*0.5);
                             colors.push(imgData[i]/255, imgData[i+1]/255, imgData[i+2]/255);
                         }
                     }
@@ -99,25 +84,64 @@
                 const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                 geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-                const points = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.02, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
-                
-                points.position.y = 2;
+                const material = new THREE.PointsMaterial({ size: 0.015, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
+                const points = new THREE.Points(geometry, material);
+                points.position.y = 1;
                 scene.add(points);
                 window.holoSuit = points;
-                
-                // Attach the "Grab" gizmo to the suit
-                transform.attach(points);
             });
         }
 
-        camera.position.set(0, 2, 12);
+        // --- 4. INTERACTION LOGIC ---
+        window.addEventListener('mousedown', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            if (window.holoSuit) {
+                const intersects = raycaster.intersectObject(window.holoSuit);
+                if (intersects.length > 0) {
+                    isDragging = true;
+                    orbit.enabled = false; // Stop camera while dragging suit
+                    
+                    // Create a plane at the suit's position facing the camera for smooth dragging
+                    dragPlane.setFromNormalAndCoplanarPoint(
+                        camera.getWorldDirection(new THREE.Vector3()).negate(),
+                        window.holoSuit.position
+                    );
+                    
+                    raycaster.ray.intersectPlane(dragPlane, intersectionPoint);
+                    offset.copy(window.holoSuit.position).sub(intersectionPoint);
+                    document.getElementById('log').innerHTML = ">> STATUS: KINETIC_DRAG_LOCKED";
+                }
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging || !window.holoSuit) return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            
+            if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
+                window.holoSuit.position.copy(intersectionPoint.add(offset));
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            orbit.enabled = true;
+            document.getElementById('log').innerHTML = ">> STATUS: SYSTEM_IDLE";
+        });
+
+        camera.position.set(0, 0, 10);
 
         function bootSystem() {
             if (isBooted) return;
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
             createHologram();
-            speakFriday("Grid lines suppressed. Kinetic grab enabled. You can now physically reposition the model, sir.");
+            speakFriday("Removing interface constraints. Drag the volumetric model directly to reposition, sir.");
         }
 
         function animate() {
