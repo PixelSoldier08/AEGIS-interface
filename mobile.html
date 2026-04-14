@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AEGIS_CONTROLLER</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+    <style>
+        body { background: #000; color: #ffaa00; text-align: center; font-family: sans-serif; height: 100vh; overflow: hidden; }
+        #pad { width: 90%; height: 60%; border: 2px solid #ffaa00; margin: 20px auto; border-radius: 20px; }
+        input { background: #111; border: 1px solid #ffaa00; color: #ffaa00; padding: 10px; width: 80%; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h2>AEGIS REMOTE</h2>
+    <input type="text" id="targetId" placeholder="Enter Computer Stark_ID">
+    <button onclick="connectToPC()" style="padding: 10px; background: #ffaa00; border: none; font-weight: bold;">LINK</button>
+    <div id="pad">DRAG HERE TO MOVE SUIT</div>
+    <p>Pinch to Zoom | Drag to Rotate</p>
+
+    <script>
+        const peer = new Peer();
+        let conn;
+        let rotationX = 0, rotationY = 0, zoom = 1;
+
+        function connectToPC() {
+            const id = document.getElementById('targetId').value;
+            conn = peer.connect(id);
+            conn.on('open', () => { alert("LINK ESTABLISHED"); });
+        }
+
+        const pad = document.getElementById('pad');
+        pad.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!conn) return;
+
+            let touch = e.touches[0];
+            rotationY = (touch.clientX / window.innerWidth) * 6.28;
+            rotationX = (touch.clientY / window.innerHeight) * 3.14;
+            
+            // Send kinetic data to PC
+            conn.send({ rx: rotationX, ry: rotationY, zoom: zoom });
+        });
+    </script>
+</body>
+</html>
