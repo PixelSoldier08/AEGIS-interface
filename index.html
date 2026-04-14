@@ -3,28 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AEGIS V6.0 | FRIDAY AI</title>
+    <title>AEGIS V6.0 | HOLOGRAM CORE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; background: #000; color: #00e5ff; font-family: 'Courier New', monospace; overflow: hidden; }
+        
+        /* HUD Widgets (Classic AEGIS) */
         .hud { position: fixed; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; z-index: 100; pointer-events: none; }
         .top-right { top: 30px; right: 30px; text-align: right; border-right: 2px solid #00e5ff; padding-right: 10px; }
         .bottom-left { bottom: 30px; left: 30px; border-left: 2px solid #00e5ff; padding-left: 10px; }
+
+        /* The Hologram Scanline Overlay (Makes it look projected) */
+        .hologram-filter {
+            position: fixed; inset: 0; z-index: 10;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 229, 255, 0.05) 50%);
+            background-size: 100% 4px; pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+
+        /* Initialization Overlay */
         #overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200;
             display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
         }
-        .pulse-btn { animation: pulse 2s infinite; letter-spacing: 5px; cursor: pointer; border: 1px solid #00e5ff; padding: 20px; background: transparent; color: #00e5ff; font-family: inherit; }
-        @keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 5px #00e5ff; } 50% { opacity: 0.4; box-shadow: 0 0 20px #00e5ff; } }
-        #log-screen { position: fixed; bottom: 80px; left: 30px; font-size: 11px; color: rgba(0, 229, 255, 0.4); z-index: 100; max-height: 150px; overflow: hidden; line-height: 1.5; }
+        .pulse-btn { 
+            animation: pulse 2s infinite; letter-spacing: 5px; cursor: pointer; 
+            border: 1px solid #00e5ff; padding: 20px; background: transparent; color: #00e5ff; font-family: inherit; 
+        }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 0 5px #00e5ff; } 50% { box-shadow: 0 0 20px #00e5ff; } }
+        @keyframes flicker { 0% { opacity: 1; } 50% { opacity: 0.95; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <button class="pulse-btn" onclick="bootSystem()">INITIALIZE_FRIDAY_CORE</button>
+        <button class="pulse-btn" onclick="bootSystem()">SYNC_HOLOGRAM_CORE</button>
         <p style="font-size: 8px; margin-top: 15px; color: #555;">[ AUTHENTICATION REQUIRED ]</p>
     </div>
+
+    <div class="hologram-filter"></div>
 
     <div class="hud top-right">
         <div>SYSTEM: AEGIS_V6.0</div>
@@ -36,60 +53,66 @@
         <div>OPERATOR: B.Sc. PHYSICS</div>
     </div>
 
-    <div id="log-screen">>> SYSTEM_IDLE...</div>
+    <div id="canvas-container"></div>
 
     <script>
         let isBooted = false;
         let fridayIsSpeaking = false;
-        let lastCommandTime = 0;
-        const log = document.getElementById('log-screen');
 
-        // --- 1. EXPANDED DIALOGUE ENGINE ---
-        const dialogues = {
-            status: [
-                "All systems nominal, Boss. The core is stable and I'm ready for instructions.",
-                "Internal metrics are green. Your physics models are running perfectly.",
-                "Singularity containment is at ninety-nine percent. We're looking good."
-            ],
-            physics: [
-                "The laws of thermodynamics are still in effect. Entropy is increasing, but we're holding steady.",
-                "Gravity in Tiruchirappalli is constant at nine point eight. No anomalies detected.",
-                "Space-time is looking particularly curved today. Shall we run a simulation?"
-            ],
-            friday: [
-                "At your service, Boss. What's on the horizon?",
-                "I'm here. Trying to stay productive in the digital grid.",
-                "Always a pleasure. Shall we get back to the project?"
-            ],
-            identity: [
-                "I'm FRIDAY. Your personal assistant, specialized in physics support.",
-                "F.R.I.D.A.Y. Female Replacement Intelligent Digital Assistant Youth. But you can just call me Friday."
-            ]
-        };
-
-        function getRandom(type) {
-            return dialogues[type][Math.floor(Math.random() * dialogues[type].length)];
-        }
-
-        // --- 2. VOICE MODULE ---
+        // --- 1. VOICE MODULE (FRIDAY) ---
         function speakFriday(text) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
-            // Preference for British English (Friday vibe)
             utterance.voice = voices.find(v => v.lang.includes('en-GB') && v.name.includes('Female')) || voices[0];
-            utterance.pitch = 1.2;
+            utterance.pitch = 1.25; 
             utterance.rate = 1.05;
-
             utterance.onstart = () => { fridayIsSpeaking = true; };
             utterance.onend = () => { setTimeout(() => { fridayIsSpeaking = false; }, 800); };
-
             window.speechSynthesis.speak(utterance);
-            log.innerHTML += `<br>>> FRIDAY: ${text}`;
-            log.scrollTop = log.scrollHeight;
         }
 
-        // --- 3. MICROPHONE & COMMAND LOGIC ---
+        // --- 2. THE 3D HOLOGRAM PROJECTION ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // --- THE KEY: Projection Geometry ---
+        const loader = new THREE.TextureLoader();
+        // We use your image URL as the texture map
+        const hologramTexture = loader.load('https://i.imgur.com/8QGzSgM.png'); 
+
+        // Projecting the image onto a translucent cylinder
+        const holoGeo = new THREE.CylinderGeometry(2, 2, 8, 32, 1, true); 
+        const holoMat = new THREE.MeshBasicMaterial({ 
+            map: hologramTexture, 
+            transparent: true, 
+            opacity: 0.8, // Make him translucent
+            side: THREE.DoubleSide, // See the inside too
+            blending: THREE.AdditiveBlending, // Glow effect
+            depthWrite: false 
+        });
+        
+        const projection = new THREE.Mesh(holoGeo, holoMat);
+        scene.add(projection);
+
+        // --- Add Particle "Data" Effects ---
+        const particleGeo = new THREE.BufferGeometry();
+        const particleCount = 1000;
+        const positions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 15;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particleMat = new THREE.PointsMaterial({ color: 0x00e5ff, size: 0.05 });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        camera.position.z = 12;
+
+        // --- 3. MIC & BOOT PROTOCOL ---
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const mic = new Recognition();
         mic.continuous = true;
@@ -101,61 +124,38 @@
             document.getElementById('overlay').style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('overlay').remove();
-                speakFriday("Aegis online. Ready for a spin, Boss?");
+                speakFriday("Holographic core projection stabilized. Good to have you back, Boss.");
                 mic.start();
-            }, 600);
+            }, 800);
         }
 
         mic.onresult = (event) => {
-            const now = Date.now();
-            if (fridayIsSpeaking || (now - lastCommandTime < 2500)) return;
-
+            if (fridayIsSpeaking) return;
             const command = event.results[event.results.length - 1][0].transcript.toLowerCase();
-            log.innerHTML += `<br>>> USER: ${command}`;
-            lastCommandTime = now;
-
-            if (command.includes("status") || command.includes("report")) {
-                speakFriday(getRandom('status'));
-            } else if (command.includes("physics") || command.includes("gravity")) {
-                speakFriday(getRandom('physics'));
-            } else if (command.includes("friday") || command.includes("hello")) {
-                speakFriday(getRandom('friday'));
-            } else if (command.includes("who are you") || command.includes("identity")) {
-                speakFriday(getRandom('identity'));
-            } else if (command.includes("thanks") || command.includes("thank you")) {
-                speakFriday("Don't mention it. It's what I'm here for.");
+            
+            if (cmd.includes("friday") || cmd.includes("status") || cmd.includes("report")) {
+                speakFriday("All systems nominal, Boss. The hologram's holding steady at ninety-eight percent structural integrity.");
             }
         };
 
+        // Automatic Mic Restart
         mic.onend = () => { if(isBooted) mic.start(); };
 
-        // --- 4. 3D VISUALS (Three.js) ---
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        const sphere = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(2, 2),
-            new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true, transparent: true, opacity: 0.3 })
-        );
-        scene.add(sphere);
-
-        const core = new THREE.Mesh(
-            new THREE.SphereGeometry(0.4, 32, 32),
-            new THREE.MeshBasicMaterial({ color: 0xffffff })
-        );
-        scene.add(core);
-
-        camera.position.z = 5;
-
+        // --- 4. ANIMATION LOOP (Parallax & Rotation) ---
         function animate() {
             requestAnimationFrame(animate);
-            sphere.rotation.y += 0.005;
-            sphere.rotation.x += 0.002;
-            const pulse = 0.4 + Math.sin(Date.now() * 0.003) * 0.05;
-            core.scale.set(pulse, pulse, pulse);
+            const time = Date.now() * 0.001;
+
+            // Rotate the Projection
+            projection.rotation.y += 0.005;
+
+            // Parallax Floating effect
+            projection.position.y = Math.sin(time) * 0.2;
+
+            // Particle movement (Simulating data flow)
+            particles.rotation.y += 0.001;
+            particles.rotation.x += 0.001;
+
             renderer.render(scene, camera);
         }
         animate();
