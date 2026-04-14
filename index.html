@@ -46,9 +46,9 @@
         document.body.appendChild(renderer.domElement);
 
         const FridayBrain = {
-            greetings: ["Systems online. Ready for your instructions, Boss.", "Workshop is calibrated and ready."],
-            jokes: ["I asked the mainboard for a raise. It told me to stop being so 'volatile'."],
-            physics: ["Orbital mechanics are green. Newton would be proud."]
+            greetings: ["Systems online. Ready for your instructions, Boss.", "The workshop was getting quiet. Glad you're here."],
+            jokes: ["Why did the tachyon leave the party? Because it hadn't arrived yet.", "I'm simulating a billion scenarios where we finish this on time. Zero results so far."],
+            physics: ["Orbital mechanics are green. Newton would be proud.", "Quantum gravity simulations are taxing the processors, but the fabric of spacetime remains stable."]
         };
 
         function copyID() {
@@ -75,7 +75,9 @@
             if (transcript.includes("friday") || transcript.includes("hello")) {
                 speakFriday(FridayBrain.greetings[Math.floor(Math.random()*FridayBrain.greetings.length)]);
             } else if (transcript.includes("joke")) {
-                speakFriday(FridayBrain.jokes[0]);
+                speakFriday(FridayBrain.jokes[Math.floor(Math.random()*FridayBrain.jokes.length)]);
+            } else if (transcript.includes("physics") || transcript.includes("science")) {
+                speakFriday(FridayBrain.physics[Math.floor(Math.random()*FridayBrain.physics.length)]);
             }
         };
 
