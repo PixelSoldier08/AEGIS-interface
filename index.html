@@ -2,126 +2,110 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | CORE_RESTORATION_V2.5</title>
+    <title>AEGIS | PRIME_STABLE_V3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
-        
-        /* 1. WIDGETS (Restoring original UI elements) */
-        #hud-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; }
-        .widget { position: absolute; padding: 10px; border: 1px solid rgba(255, 170, 0, 0.4); background: rgba(0, 0, 0, 0.7); pointer-events: auto; }
-        #peer-id-box { top: 20px; left: 20px; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; }
-        #convo-log { bottom: 30px; left: 30px; width: 350px; max-height: 200px; overflow-y: auto; font-size: 11px; }
-        #status-link { bottom: 30px; right: 30px; color: #00ff00; }
-        
-        /* Interactive element for ID copy */
-        #stark-id-link { color: #00ff00; font-weight: bold; cursor: pointer; text-decoration: underline; }
-        #stark-id-link:hover { color: white; }
+        #hud { position: fixed; inset: 0; pointer-events: none; z-index: 100; padding: 20px; }
+        .widget { position: absolute; padding: 10px; border: 1px solid rgba(255, 170, 0, 0.4); background: rgba(0, 0, 0, 0.8); pointer-events: auto; }
+        #stark-box { top: 20px; left: 20px; font-size: 10px; border-color: #00ff00; }
+        #convo-log { bottom: 20px; left: 20px; width: 320px; max-height: 180px; overflow-y: auto; font-size: 11px; }
+        #link-status { bottom: 20px; right: 20px; color: #00ff00; }
+        #id-val { color: #00ff00; cursor: pointer; text-decoration: underline; }
     </style>
 </head>
 <body onclick="initFriday()">
 
-    <div id="hud-layer">
-        <div id="peer-id-box" class="widget">STARK_ID: <span id="stark-id-link" onclick="copyID()">GENERATING...</span></div>
-        <div id="convo-log" class="widget">
-            >> SYSTEM_INITIALIZING...<br>>> CORE_READY...<br>>> CLICK_SCREEN_TO_INITIALIZE_VOICE
-        </div>
-        <div id="status-link" class="widget">>> REMOTE: OFFLINE</div>
+    <div id="hud">
+        <div id="stark-box" class="widget">STARK_ID: <span id="id-val">CONNECTING...</span></div>
+        <div id="convo-log" class="widget">>> CORE_SYSTEM_LOADED...<br>>> CLICK_SCREEN_FOR_AUDIO</div>
+        <div id="link-status" class="widget">>> REMOTE: OFFLINE</div>
     </div>
 
     <script>
-        // --- 2. THE VOICE (FRIDAY) ---
-        let initialized = false;
+        // --- 1. FRIDAY VOICE CORE ---
+        let voiceActive = false;
         function speak(text) {
-            if (!initialized) return;
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.rate = 1.0; 
-            msg.pitch = 1.1; // "FRIDAY" voice profile
-            window.speechSynthesis.speak(msg);
+            if (!voiceActive) return;
+            const synth = window.speechSynthesis;
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.pitch = 1.1; uttr.rate = 1.05;
+            synth.speak(utter);
             document.getElementById('convo-log').innerHTML += `<br>>> FRIDAY: ${text}`;
         }
 
-        // Must click screen to enable voice (browser policy)
         function initFriday() {
-            if (initialized) return;
-            initialized = true;
-            document.getElementById('convo-log').innerHTML += `<br>>> AUDIO_CORE_ACTIVE`;
-            speak("Welcome back, Ikki. Restoring AEGIS visual array.");
+            if (voiceActive) return;
+            voiceActive = true;
+            speak("Welcome back, Boss. Recalibrating visual sensors.");
         }
 
-        // --- 3. THE HOLOGRAM (Restoring complex suit.png loading) ---
+        // --- 2. HOLOGRAM RESTORATION (The "Suit" Fix) ---
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
         const loader = new THREE.TextureLoader();
-        // ENSURE 'suit.png' IS IN YOUR REPOSITORY!
-        loader.load('suit.png', function (texture) {
+        loader.load('suit.png', (texture) => {
+            const img = texture.image;
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            const img = texture.image;
-            canvas.width = img.width;
-            canvas.height = img.height;
+            canvas.width = img.width; canvas.height = img.height;
             ctx.drawImage(img, 0, 0);
 
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const vertices = [];
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            const pos = [];
             
-            // Complex Particle Mapping from Asset
-            for (let y = 0; y < canvas.height; y += 3) {
-                for (let x = 0; x < canvas.width; x += 3) {
-                    const alpha = imgData.data[((y * canvas.width + x) * 4) + 3];
-                    if (alpha > 128) {
-                        vertices.push(
-                            (x - canvas.width / 2) * 0.06, 
-                            -(y - canvas.height / 2) * 0.06, 
-                            (Math.random() - 0.5) * 1.5 // Adds depth like image_16.png
+            // Refined spacing (+= 4) to prevent the "Wall of Static"
+            for (let y = 0; y < canvas.height; y += 4) {
+                for (let x = 0; x < canvas.width; x += 4) {
+                    const i = (y * canvas.width + x) * 4;
+                    if (data[i + 3] > 128) {
+                        pos.push(
+                            (x - canvas.width / 2) * 0.04,  // X Scaling
+                            -(y - canvas.height / 2) * 0.04, // Y Scaling
+                            (Math.random() - 0.5) * 1.2     // Z Depth
                         );
                     }
                 }
             }
 
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-            // Restoring the specific glow color and particle size from original build
-            const material = new THREE.PointsMaterial({ size: 0.1, color: 0xffaa00, transparent: true, opacity: 0.8 });
-            const points = new THREE.Points(geometry, material);
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({ size: 0.08, color: 0xffaa00, transparent: true, opacity: 0.7 });
+            const points = new THREE.Points(geo, mat);
             scene.add(points);
-            window.holoSuit = points;
+            window.suitHolo = points;
+            document.getElementById('convo-log').innerHTML += `<br>>> SUIT_LOADED_SUCCESSFULLY`;
         });
 
-        camera.position.z = 25;
+        camera.position.z = 15; // Adjusted camera to fit the silhouette properly
         function animate() {
             requestAnimationFrame(animate);
-            if(window.holoSuit) window.holoSuit.rotation.y += 0.002; // Restored rotation speed
+            if(window.suitHolo) window.suitHolo.rotation.y += 0.003;
             renderer.render(scene, camera);
         }
         animate();
 
-        // --- 4. NEURAL LINK (Restoring copy-paste and status link) ---
+        // --- 3. PEER CONNECTIVITY ---
         const peer = new Peer();
-        peer.on('open', (id) => {
-            document.getElementById('stark-id-link').innerText = id;
-        });
-
-        function copyID() {
-            const id = document.getElementById('stark-id-link').innerText;
-            navigator.clipboard.writeText(id);
-            document.getElementById('convo-log').innerHTML += `<br>>> ID_COPIED: ${id}`;
-        }
-
-        peer.on('connection', (conn) => {
-            document.getElementById('status-link').innerText = ">> REMOTE: LINKED";
-            document.getElementById('status-link').style.color = "#00ff00";
-            speak("Mobile connection active, Boss.");
-            
-            conn.on('data', (data) => {
+        peer.on('open', id => document.getElementById('id-val').innerText = id);
+        peer.on('connection', conn => {
+            document.getElementById('link-status').innerText = ">> REMOTE: LINKED";
+            speak("Neural link established. All systems nominal.");
+            conn.on('data', data => {
                 document.getElementById('convo-log').innerHTML += `<br>>> CMD: ${data}`;
             });
         });
+
+        function copyID() {
+            navigator.clipboard.writeText(document.getElementById('id-val').innerText);
+            document.getElementById('convo-log').innerHTML += `<br>>> ID_COPIED`;
+        }
+        document.getElementById('id-val').onclick = copyID;
     </script>
 </body>
 </html>
