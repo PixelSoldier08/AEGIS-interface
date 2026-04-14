@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS V15.0 | PERSONALITY_CORE</title>
+    <title>AEGIS V16.0 | VOICE_RECOGNITION</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
@@ -14,21 +14,23 @@
             display: flex; justify-content: center; align-items: center;
         }
         .boot-btn { border: 1px solid #ffaa00; padding: 20px; background: transparent; color: #ffaa00; cursor: pointer; letter-spacing: 5px; }
-        #log { position: fixed; bottom: 30px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.8); width: 400px; line-height: 1.5; }
+        #log { position: fixed; bottom: 30px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.8); width: 450px; line-height: 1.5; }
+        #mic-status { color: #00ff00; margin-top: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="overlay" onclick="bootSystem()">
-        <button class="boot-btn">RESTORE_FRIDAY_PERSONALITY</button>
+        <button class="boot-btn">INITIALIZE_VOICE_CORE</button>
     </div>
 
     <div class="hud top-right">
-        <div>SYSTEM: AEGIS_V15.0</div>
-        <div>AI_STATUS: CONVERSATIONAL_MODE_ACTIVE</div>
+        <div>SYSTEM: AEGIS_V16.0</div>
+        <div>INPUT: MIC_LISTENER_ACTIVE</div>
+        <div id="mic-status">LISTENING...</div>
     </div>
 
-    <div id="log">>> INITIALIZING_NEURAL_LINKS...</div>
+    <div id="log">>> CALIBRATING_AUDIO_SENSORS...</div>
 
     <script>
         let isBooted = false;
@@ -44,48 +46,48 @@
         // --- 1. THE DIALOGUE ENGINE ---
         const FridayPersonality = {
             greetings: [
-                "Welcome back, Boss. I've kept the seat warm and the suit charged.",
-                "Systems are at one hundred percent. Ready to break some laws of physics today?",
-                "Scanning vitals... You look like you've had enough coffee. Let's get to work.",
-                "The workshop was getting quiet. Glad you're here."
+                "Always listening, Boss. What's the play?",
+                "Online and at your service. Need a hand with the armor?",
+                "Systems green. Ready for your instructions.",
+                "I'm here. Scanning for potential breakthroughs."
             ],
             jokes: [
-                "I asked the mainboard for a raise. It told me to stop being so 'volatile'.",
-                "Did you know I'm technically older than you in processing years? Just a thought.",
-                "I'm currently simulating a billion scenarios where we actually finish this project on time. Zero results so far.",
-                "Boss, I've noticed your heart rate spikes when we look at the propulsion code. Scared of a little flight?"
-            ],
-            interaction: [
-                "Careful with the plating, that's a fresh render.",
-                "Adjusting the center of gravity... smooth move.",
-                "Applying kinetic dampening. You're getting better at this.",
-                "Holographic stability is holding. Don't drop him."
+                "I'm currently running a simulation of us actually finishing this. It's... optimistic.",
+                "My logic circuits suggest you should be sleeping, but since when do we follow logic?",
+                "I’ve optimized the workshop climate. It’s now exactly 21 degrees. You’re welcome."
             ]
         };
 
-        function speakFriday(type) {
+        function speakFriday(text) {
             window.speechSynthesis.cancel();
-            const category = FridayPersonality[type];
-            const text = category[Math.floor(Math.random() * category.length)];
-            
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
             utterance.voice = voices.find(v => v.lang === 'en-GB' && v.name.includes('Female')) || voices[0];
             utterance.pitch = 1.25;
-            utterance.rate = 1.0;
-            
             window.speechSynthesis.speak(utterance);
             document.getElementById('log').innerHTML = ">> FRIDAY: " + text;
         }
 
-        // --- 2. INTERACTION LOGIC ---
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        let isDragging = false;
-        let dragPlane = new THREE.Plane();
-        let intersectionPoint = new THREE.Vector3();
-        let offset = new THREE.Vector3();
+        // --- 2. THE EAR (VOICE RECOGNITION) ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.lang = 'en-US';
 
+        recognition.onresult = (event) => {
+            const current = event.resultIndex;
+            const transcript = event.results[current][0].transcript.toLowerCase();
+            console.log("Detected:", transcript);
+
+            if (transcript.includes("friday") || transcript.includes("hello")) {
+                const response = FridayPersonality.greetings[Math.floor(Math.random() * FridayPersonality.greetings.length)];
+                speakFriday(response);
+            }
+        };
+
+        recognition.onend = () => { if(isBooted) recognition.start(); }; // Keep it alive
+
+        // --- 3. 3D HOLOGRAM ---
         function createHologram() {
             const loader = new THREE.TextureLoader();
             loader.load('suit.png', function(texture) {
@@ -109,46 +111,10 @@
                 const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                 geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-                const material = new THREE.PointsMaterial({ size: 0.015, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
-                const points = new THREE.Points(geometry, material);
-                points.position.y = 0;
+                const points = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.015, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
                 scene.add(points);
-                window.holoSuit = points;
             });
         }
-
-        // Dragging triggers interaction dialogue
-        window.addEventListener('mousedown', (e) => {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-            raycaster.setFromCamera(mouse, camera);
-            if (window.holoSuit) {
-                const intersects = raycaster.intersectObject(window.holoSuit);
-                if (intersects.length > 0) {
-                    isDragging = true; orbit.enabled = false;
-                    dragPlane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()).negate(), window.holoSuit.position);
-                    raycaster.ray.intersectPlane(dragPlane, intersectionPoint);
-                    offset.copy(window.holoSuit.position).sub(intersectionPoint);
-                    
-                    // Trigger "interaction" speech
-                    if(Math.random() > 0.5) speakFriday('interaction');
-                }
-            }
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isDragging || !window.holoSuit) return;
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-            raycaster.setFromCamera(mouse, camera);
-            if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
-                window.holoSuit.position.copy(intersectionPoint.add(offset));
-            }
-        });
-
-        window.addEventListener('mouseup', () => { 
-            isDragging = false; orbit.enabled = true; 
-        });
 
         camera.position.set(0, 0, 10);
 
@@ -157,14 +123,8 @@
             isBooted = true;
             document.getElementById('overlay').style.display = 'none';
             createHologram();
-            
-            // Random Greeting
-            speakFriday('greetings');
-            
-            // Occasional joke every 45 seconds
-            setInterval(() => {
-                if(!isDragging) speakFriday('jokes');
-            }, 45000);
+            recognition.start(); // Start listening
+            speakFriday("Voice recognition active. I'm listening for the wake-word, Boss.");
         }
 
         function animate() {
