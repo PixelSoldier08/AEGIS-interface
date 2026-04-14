@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AEGIS | KINETIC_LINK</title>
+    <title>AEGIS | KINETIC_LINK_V2.3</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { 
@@ -13,39 +13,41 @@
         }
         #header { margin-top: 20px; text-transform: uppercase; letter-spacing: 3px; font-size: 14px; }
         
-        #connection-hub { width: 90%; margin: 20px 0; z-index: 10; }
+        #connection-hub { width: 90%; margin: 20px 0; z-index: 10; transition: 0.5s; }
         input { 
-            width: 100%; padding: 12px; background: #111; border: 1px solid #ffaa00; 
+            width: 100%; padding: 15px; background: #111; border: 1px solid #ffaa00; 
             color: #ffaa00; border-radius: 5px; box-sizing: border-box; font-family: inherit;
+            font-size: 12px; text-align: center;
         }
         button { 
-            width: 100%; margin-top: 10px; padding: 12px; background: #ffaa00; 
+            width: 100%; margin-top: 10px; padding: 15px; background: #ffaa00; 
             color: #000; border: none; font-weight: bold; cursor: pointer; border-radius: 5px;
+            text-transform: uppercase; letter-spacing: 2px;
         }
 
         #pad { 
-            width: 92vw; height: 65vh; border: 1px solid rgba(255, 170, 0, 0.4); 
+            width: 92vw; height: 60vh; border: 1px solid rgba(255, 170, 0, 0.3); 
             border-radius: 15px; display: flex; align-items: center; justify-content: center;
             position: relative; background: radial-gradient(circle, rgba(255,170,0,0.03) 0%, rgba(0,0,0,1) 90%);
             touch-action: none;
         }
-        #pad::after { content: "READY FOR GESTURES"; font-size: 9px; opacity: 0.3; letter-spacing: 2px; }
+        #pad::after { content: "READY_FOR_GESTURES"; font-size: 9px; opacity: 0.3; letter-spacing: 2px; }
         
-        #status { margin-top: 15px; font-size: 11px; color: #00ff00; letter-spacing: 1px; }
+        #status { margin-top: 15px; font-size: 11px; color: #ffaa00; letter-spacing: 1px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="header">AEGIS REMOTE V2.2</div>
+    <div id="header">AEGIS REMOTE V2.3</div>
 
-    <div id="connection-hub">
-        <input type="text" id="targetId" placeholder="ENTER COMPUTER STARK_ID">
+    <div id="connection-hub" id="hub">
+        <input type="text" id="targetId" placeholder="PASTE STARK_ID HERE">
         <button onclick="connectToPC()">ESTABLISH LINK</button>
     </div>
 
     <div id="pad"></div>
 
-    <div id="status">>> OFFLINE</div>
+    <div id="status">>> STANDBY_FOR_ID</div>
 
     <script>
         const peer = new Peer();
@@ -56,26 +58,46 @@
         let startX = 0, startY = 0;
         let initialDist = 0;
 
+        // --- HIGH-SPEED HANDSHAKE ---
         function connectToPC() {
             const id = document.getElementById('targetId').value.trim();
             if (!id) return;
             
-            document.getElementById('status').innerHTML = ">> ATTEMPTING_HANDSHAKE...";
-            conn = peer.connect(id);
+            document.getElementById('status').innerHTML = ">> BYPASSING_FIREWALLS...";
+            
+            // Connect with High-Reliability and Zero-Latency flags
+            conn = peer.connect(id, {
+                reliable: true,
+                serialization: 'json'
+            });
 
             conn.on('open', () => {
-                document.getElementById('status').innerHTML = ">> NEURAL_LINK_ESTABLISHED";
-                document.getElementById('connection-hub').style.opacity = '0.3'; 
-                // We keep the input visible but faded in case you need to reconnect
+                document.getElementById('status').innerHTML = ">> LINK_LOCKED_INSTANT";
+                document.getElementById('status').style.color = "#00ff00";
+                document.getElementById('connection-hub').style.opacity = '0.1'; 
+                
+                // Wake up the host immediately
+                transmitData();
             });
+
+            conn.on('error', (err) => {
+                document.getElementById('status').innerHTML = ">> LINK_FAILED: RETRYING...";
+                document.getElementById('status').style.color = "#ff0000";
+                setTimeout(connectToPC, 2000); // Auto-retry on fail
+            });
+        }
+
+        function transmitData() {
+            if (conn && conn.open) {
+                conn.send({ rx: rotationX, ry: rotationY, zoom: zoom });
+            }
         }
 
         const pad = document.getElementById('pad');
 
-        // --- GESTURE ENGINE (RELATIVE MOTION) ---
+        // --- RELATIVE MOTION ENGINE ---
         pad.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
-                // Record anchor point to calculate delta
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
             }
@@ -83,49 +105,38 @@
 
         pad.addEventListener('touchmove', (e) => {
             e.preventDefault(); 
-            if (!conn) return;
+            if (!conn || !conn.open) return;
 
-            // 1. RELATIVE ROTATION (Single Finger)
             if (e.touches.length === 1) {
                 let touch = e.touches[0];
-                
-                // Calculate movement since last frame
                 let deltaX = touch.clientX - startX;
                 let deltaY = touch.clientY - startY;
 
-                // Update values incrementally (0.008 = Sensitivity)
+                // Adjust 0.008 to match your preferred rotation speed
                 rotationY += deltaX * 0.008; 
                 rotationX += deltaY * 0.008;
 
-                // Reset anchor for next movement frame
                 startX = touch.clientX;
                 startY = touch.clientY;
             } 
-            
-            // 2. KINETIC ZOOM (Pinch Gesture)
             else if (e.touches.length === 2) {
                 let dist = Math.hypot(
                     e.touches[0].pageX - e.touches[1].pageX,
                     e.touches[0].pageY - e.touches[1].pageY
                 );
-
                 if (initialDist === 0) {
                     initialDist = dist;
                 } else {
                     let delta = (dist - initialDist) * 0.005;
-                    // Clamp zoom to prevent model vanishing
                     zoom = Math.min(Math.max(0.3, zoom + delta), 4.0);
                     initialDist = dist;
                 }
             }
             
-            // TRANSMIT PACKET
-            conn.send({ rx: rotationX, ry: rotationY, zoom: zoom });
+            transmitData();
         }, { passive: false });
 
-        pad.addEventListener('touchend', () => {
-            initialDist = 0; // Clear zoom reference
-        });
+        pad.addEventListener('touchend', () => { initialDist = 0; });
 
     </script>
 </body>
