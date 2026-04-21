@@ -2,83 +2,131 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | WORKSHOP_HOST</title>
+    <title>AEGIS | DYNAMIC_INJECTION</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
-        #log { position: fixed; bottom: 30px; left: 30px; font-size: 11px; color: rgba(255, 170, 0, 0.8); }
-        #peer-id { position: fixed; top: 20px; left: 20px; background: rgba(255,170,0,0.1); padding: 10px; border: 1px solid #ffaa00; }
+        #hud { position: fixed; inset: 0; pointer-events: none; z-index: 100; padding: 25px; }
+        .widget { position: absolute; padding: 12px; border: 1px solid rgba(255, 170, 0, 0.4); background: rgba(0, 0, 0, 0.85); pointer-events: auto; }
+        #drop-zone { 
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 300px; height: 200px; border: 2px dashed #ffaa00;
+            display: flex; align-items: center; text-align: center; font-size: 12px;
+            opacity: 0.5; transition: 0.3s;
+        }
+        #drop-zone.dragover { background: rgba(255, 170, 0, 0.2); opacity: 1; scale: 1.1; }
+        #log { bottom: 25px; left: 25px; width: 340px; max-height: 150px; overflow-y: auto; font-size: 11px; border-bottom: 2px solid #ffaa00; }
+        #id-box { top: 20px; left: 20px; border-left: 4px solid #00ff00; }
     </style>
 </head>
-<body>
-    <div id="peer-id">CONNECTING TO STARK_NET...</div>
-    <div id="log">>> WAITING FOR MOBILE LINK...</div>
+<body onclick="initAudio()">
+
+    <div id="hud">
+        <div id="id-box" class="widget">NEURAL_ID: <span id="stark-id" style="color:#00ff00;">...</span></div>
+        <div id="drop-zone" class="widget">>> DROP_IMAGE_HERE_FOR_3D_SCAN <<</div>
+        <div id="log" class="widget">>> AEGIS_DYNAMIC_LOADER_ONLINE<br>>> READY_FOR_INJECTION</div>
+    </div>
 
     <script>
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        let scene, camera, renderer, currentHolo;
+        let audioReady = false;
+
+        function speak(t) {
+            if(!audioReady) return;
+            const u = new SpeechSynthesisUtterance(t);
+            u.pitch = 1.1; window.speechSynthesis.speak(u);
+            const l = document.getElementById('log');
+            l.innerHTML += `<br>>> FRIDAY: ${t}`;
+            l.scrollTop = l.scrollHeight;
+        }
+
+        function initAudio() {
+            if(audioReady) return;
+            audioReady = true;
+            speak("Dynamic injection system online. Awaiting asset drop.");
+        }
+
+        // --- 1. THE ENGINE ---
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+        camera.position.z = 15;
 
-        // --- 1. PEERJS LINK (The "Net") ---
-        const peer = new Peer(); 
-        peer.on('open', (id) => {
-            document.getElementById('peer-id').innerHTML = "STARK_ID: " + id;
-            console.log('My ID is: ' + id);
-        });
+        // --- 2. DYNAMIC INJECTION LOGIC ---
+        function generateHologram(imageSrc) {
+            if(currentHolo) scene.remove(currentHolo);
+            speak("Scanning external asset. Converting pixels to coordinates.");
 
-        peer.on('connection', (conn) => {
-            document.getElementById('log').innerHTML = ">> MOBILE_LINK_ESTABLISHED";
-            conn.on('data', (data) => {
-                if(window.holoSuit) {
-                    // Mapping mobile gestures to 3D rotation
-                    window.holoSuit.rotation.y = data.ry;
-                    window.holoSuit.rotation.x = data.rx;
-                    window.holoSuit.scale.setScalar(data.zoom);
-                }
-            });
-        });
-
-        // --- 2. 3D SUIT GENERATION ---
-        function createHologram() {
             const loader = new THREE.TextureLoader();
-            loader.load('suit.png', function(texture) {
-                const canvas = document.createElement('canvas');
-                const img = texture.image;
-                canvas.width = img.width; canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
+            loader.load(imageSrc, (txt) => {
+                const cvs = document.createElement('canvas');
+                const ctx = cvs.getContext('2d');
+                const img = txt.image;
+                cvs.width = img.width; cvs.height = img.height;
                 ctx.drawImage(img, 0, 0);
-                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                const positions = [], colors = [];
 
-                for (let y = 0; y < canvas.height; y += 2) {
-                    for (let x = 0; x < canvas.width; x += 2) {
-                        const i = (y * canvas.width + x) * 4;
-                        if (imgData[i+3] > 60) {
-                            positions.push((x - canvas.width/2)/90, -(y - canvas.height/2)/90, (Math.random()-0.5)*0.5);
-                            colors.push(imgData[i]/255, imgData[i+1]/255, imgData[i+2]/255);
+                const data = ctx.getImageData(0,0,cvs.width,cvs.height).data;
+                const pos = [], cols = [];
+
+                for(let y=0; y<cvs.height; y+=3) { // Density adjustment
+                    for(let x=0; x<cvs.width; x+=3) {
+                        const i = (y * cvs.width + x) * 4;
+                        const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+                        const alpha = data[i+3];
+
+                        // Filter: Brightness or Alpha check
+                        if(alpha > 100 || brightness > 50) {
+                            pos.push((x-cvs.width/2)/50, -(y-cvs.height/2)/50, (Math.random()-0.5)*0.5);
+                            // Preserve original colors of the image!
+                            cols.push(data[i]/255, data[i+1]/255, data[i+2]/255);
                         }
                     }
                 }
-                const geometry = new THREE.BufferGeometry();
-                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-                const points = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.02, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending }));
-                scene.add(points);
-                window.holoSuit = points;
+
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+                geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+                
+                const mat = new THREE.PointsMaterial({ size: 0.02, vertexColors: true, transparent: true });
+                currentHolo = new THREE.Points(geo, mat);
+                scene.add(currentHolo);
+                speak("Injection complete. Visualizing data.");
+                document.getElementById('drop-zone').style.display = 'none'; // Hide drop zone after load
             });
         }
 
-        camera.position.z = 10;
-        createHologram();
+        // --- 3. DRAG & DROP HANDLERS ---
+        const dz = document.getElementById('drop-zone');
+        window.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+        window.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dz.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => generateHologram(event.target.result);
+                reader.readAsDataURL(file);
+            }
+        });
 
         function animate() {
             requestAnimationFrame(animate);
+            if(currentHolo) currentHolo.rotation.y += 0.005;
             renderer.render(scene, camera);
         }
         animate();
+
+        // --- 4. NEURAL LINK ---
+        const peer = new Peer();
+        peer.on('open', id => document.getElementById('stark-id').innerText = id);
+        peer.on('connection', conn => {
+            speak("Remote neural link established.");
+            conn.on('data', d => { if(currentHolo && d.ry) currentHolo.rotation.y = d.ry; });
+        });
     </script>
 </body>
 </html>
