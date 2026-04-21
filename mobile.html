@@ -3,132 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AEGIS | KINETIC_LINK</title>
+    <title>AEGIS | REMOTE</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
-        body { 
-            margin: 0; background: #000; color: #ffaa00; 
-            font-family: 'Courier New', monospace; overflow: hidden;
-            display: flex; flex-direction: column; align-items: center;
-        }
-        #header { margin-top: 20px; text-transform: uppercase; letter-spacing: 3px; font-size: 14px; }
-        #connection-hub { width: 90%; margin: 20px 0; z-index: 10; }
-        input { 
-            width: 100%; padding: 15px; background: #111; border: 1px solid #ffaa00; 
-            color: #ffaa00; border-radius: 5px; box-sizing: border-box; font-family: inherit;
-            text-align: center; margin-bottom: 10px;
-        }
-        button { 
-            width: 100%; padding: 15px; background: #ffaa00; border: none; 
-            color: #000; font-weight: bold; border-radius: 5px; cursor: pointer;
-            text-transform: uppercase;
-        }
-        #pad { 
-            flex-grow: 1; width: 90vw; margin-bottom: 20px;
-            border: 2px solid rgba(255, 170, 0, 0.3);
-            border-radius: 20px; background: radial-gradient(circle, rgba(255,170,0,0.05) 0%, rgba(0,0,0,1) 80%);
-            display: flex; align-items: center; justify-content: center;
-            position: relative; touch-action: none;
-        }
-        #pad::after { content: "KINETIC_SENSOR_ACTIVE"; font-size: 10px; opacity: 0.3; letter-spacing: 5px; }
-        .status { font-size: 10px; margin-top: 5px; color: #00ff00; }
+        body { margin: 0; background: #000; color: #ffaa00; font-family: monospace; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+        #pad { width: 90vw; height: 60vh; border: 1px solid #ffaa00; margin: 20px; border-radius: 15px; touch-action: none; background: radial-gradient(circle, #111 0%, #000 100%); }
+        input, button { width: 80%; padding: 15px; margin: 5px; background: #111; border: 1px solid #ffaa00; color: #ffaa00; border-radius: 5px; }
+        button { background: #ffaa00; color: #000; font-weight: bold; }
     </style>
 </head>
 <body>
-
-    <div id="header">Neural Link Interface</div>
-    
-    <div id="connection-hub">
-        <input type="text" id="peer-input" placeholder="ENTER STARK_ID">
-        <button id="connect-btn">INITIATE_HANDSHAKE</button>
-        <div id="status-text" class="status">SYSTEM_IDLE</div>
-    </div>
-
+    <h3 style="margin-top:20px;">AEGIS REMOTE</h3>
+    <input type="text" id="targetId" placeholder="ENTER STARK_ID">
+    <button onclick="connect()">ESTABLISH LINK</button>
     <div id="pad"></div>
+    <div id="status">OFFLINE</div>
 
     <script>
         const peer = new Peer();
-        let conn = null;
-        let rotationX = 0, rotationY = 0, currentZoom = 1.0;
-        let startX = 0, startY = 0, initialDist = 0;
+        let conn, rx = 0, ry = 0, zoom = 1, startX, startY, initialDist = 0;
+
+        function connect() {
+            conn = peer.connect(document.getElementById('targetId').value);
+            conn.on('open', () => { 
+                document.getElementById('status').innerText = "LINKED";
+                if(navigator.vibrate) navigator.vibrate(100);
+            });
+        }
 
         const pad = document.getElementById('pad');
-        const status = document.getElementById('status-text');
-
-        // --- 1. CONNECTION LOGIC ---
-        document.getElementById('connect-btn').onclick = () => {
-            const remoteId = document.getElementById('peer-input').value;
-            status.innerText = "ATTEMPTING_LINK...";
-            
-            conn = peer.connect(remoteId);
-            
-            conn.on('open', () => {
-                status.innerText = "LINK_ESTABLISHED";
-                status.style.color = "#00ff00";
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Stark-tech pulse
-                pad.style.borderColor = "#00ff00";
-            });
-
-            conn.on('error', () => {
-                status.innerText = "LINK_FAILED";
-                status.style.color = "#ff0000";
-            });
-        };
-
-        // --- 2. CONTROL LOGIC ---
-        pad.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }
+        pad.addEventListener('touchstart', e => {
+            if(e.touches.length === 1) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; }
         });
 
-        pad.addEventListener('touchmove', (e) => {
-            e.preventDefault(); 
-            if (!conn || !conn.open) return;
+        pad.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if(!conn || !conn.open) return;
 
-            if (e.touches.length === 1) {
-                // --- INVERTED ROTATION ---
-                let touch = e.touches[0];
-                let deltaX = touch.clientX - startX;
-                let deltaY = touch.clientY - startY;
-
-                rotationY += deltaX * 0.008; 
-                rotationX -= deltaY * 0.008; // Inverted: Swipe up = View tilts down
-
-                startX = touch.clientX;
-                startY = touch.clientY;
-
+            if(e.touches.length === 1) {
+                let dx = e.touches[0].clientX - startX;
+                let dy = e.touches[0].clientY - startY;
+                ry += dx * 0.01;
+                rx -= dy * 0.01; // INVERTED
+                startX = e.touches[0].clientX; startY = e.touches[0].clientY;
             } else if (e.touches.length === 2) {
-                // --- SMOOTH LINEAR ZOOM ---
-                let dist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-
-                if (initialDist === 0) {
-                    initialDist = dist; 
-                } else {
-                    let delta = (dist - initialDist) * 0.005;
-                    currentZoom = Math.min(Math.max(0.3, currentZoom + delta), 4.0);
-                    initialDist = dist; // Baseline shift for smoothness
+                let d = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                if(initialDist === 0) initialDist = d;
+                else {
+                    zoom = Math.min(Math.max(0.3, zoom + (d - initialDist) * 0.005), 4);
+                    initialDist = d;
                 }
             }
-
-            // Sync with Desktop
-            conn.send({
-                ry: rotationY,
-                rx: rotationX,
-                zoom: currentZoom
-            });
+            conn.send({ rx, ry, zoom });
         });
 
-        pad.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) {
-                initialDist = 0; // Clear zoom reference
-            }
-        });
-
+        pad.addEventListener('touchend', () => initialDist = 0);
     </script>
 </body>
 </html>
