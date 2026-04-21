@@ -14,50 +14,68 @@
         #header { margin-top: 20px; text-transform: uppercase; letter-spacing: 3px; font-size: 14px; }
         #connection-hub { width: 90%; margin: 20px 0; z-index: 10; }
         input { 
-            width: 100%; padding: 12px; background: #111; border: 1px solid #ffaa00; 
+            width: 100%; padding: 15px; background: #111; border: 1px solid #ffaa00; 
             color: #ffaa00; border-radius: 5px; box-sizing: border-box; font-family: inherit;
+            text-align: center; margin-bottom: 10px;
         }
         button { 
-            width: 100%; margin-top: 10px; padding: 12px; background: #ffaa00; 
-            color: #000; border: none; font-weight: bold; cursor: pointer; border-radius: 5px;
+            width: 100%; padding: 15px; background: #ffaa00; border: none; 
+            color: #000; font-weight: bold; border-radius: 5px; cursor: pointer;
+            text-transform: uppercase;
         }
         #pad { 
-            width: 92vw; height: 60vh; border: 1px solid rgba(255, 170, 0, 0.4); 
-            border-radius: 15px; display: flex; align-items: center; justify-content: center;
-            position: relative; background: radial-gradient(circle, rgba(255,170,0,0.03) 0%, rgba(0,0,0,1) 90%);
-            touch-action: none;
+            flex-grow: 1; width: 90vw; margin-bottom: 20px;
+            border: 2px solid rgba(255, 170, 0, 0.3);
+            border-radius: 20px; background: radial-gradient(circle, rgba(255,170,0,0.05) 0%, rgba(0,0,0,1) 80%);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; touch-action: none;
         }
-        #pad::after { content: "READY FOR GESTURES"; font-size: 9px; opacity: 0.3; letter-spacing: 2px; }
-        #status { margin-top: 15px; font-size: 11px; color: #00ff00; letter-spacing: 1px; }
+        #pad::after { content: "KINETIC_SENSOR_ACTIVE"; font-size: 10px; opacity: 0.3; letter-spacing: 5px; }
+        .status { font-size: 10px; margin-top: 5px; color: #00ff00; }
     </style>
 </head>
 <body>
-    <div id="header">AEGIS REMOTE V2.2</div>
+
+    <div id="header">Neural Link Interface</div>
+    
     <div id="connection-hub">
-        <input type="text" id="targetId" placeholder="ENTER COMPUTER STARK_ID">
-        <button onclick="connectToPC()">ESTABLISH LINK</button>
+        <input type="text" id="peer-input" placeholder="ENTER STARK_ID">
+        <button id="connect-btn">INITIATE_HANDSHAKE</button>
+        <div id="status-text" class="status">SYSTEM_IDLE</div>
     </div>
+
     <div id="pad"></div>
-    <div id="status">>> OFFLINE</div>
 
     <script>
         const peer = new Peer();
-        let conn;
-        let rotationX = 0, rotationY = 0, zoom = 1;
+        let conn = null;
+        let rotationX = 0, rotationY = 0, currentZoom = 1.0;
         let startX = 0, startY = 0, initialDist = 0;
 
-        function connectToPC() {
-            const id = document.getElementById('targetId').value.trim();
-            if (!id) return;
-            document.getElementById('status').innerHTML = ">> ATTEMPTING_HANDSHAKE...";
-            conn = peer.connect(id);
-            conn.on('open', () => {
-                document.getElementById('status').innerHTML = ">> NEURAL_LINK_ESTABLISHED";
-                document.getElementById('connection-hub').style.opacity = '0.3'; 
-            });
-        }
-
         const pad = document.getElementById('pad');
+        const status = document.getElementById('status-text');
+
+        // --- 1. CONNECTION LOGIC ---
+        document.getElementById('connect-btn').onclick = () => {
+            const remoteId = document.getElementById('peer-input').value;
+            status.innerText = "ATTEMPTING_LINK...";
+            
+            conn = peer.connect(remoteId);
+            
+            conn.on('open', () => {
+                status.innerText = "LINK_ESTABLISHED";
+                status.style.color = "#00ff00";
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Stark-tech pulse
+                pad.style.borderColor = "#00ff00";
+            });
+
+            conn.on('error', () => {
+                status.innerText = "LINK_FAILED";
+                status.style.color = "#ff0000";
+            });
+        };
+
+        // --- 2. CONTROL LOGIC ---
         pad.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
                 startX = e.touches[0].clientX;
@@ -67,29 +85,50 @@
 
         pad.addEventListener('touchmove', (e) => {
             e.preventDefault(); 
-            if (!conn) return;
+            if (!conn || !conn.open) return;
 
             if (e.touches.length === 1) {
+                // --- INVERTED ROTATION ---
                 let touch = e.touches[0];
                 let deltaX = touch.clientX - startX;
                 let deltaY = touch.clientY - startY;
+
                 rotationY += deltaX * 0.008; 
-                rotationX += deltaY * 0.008;
+                rotationX -= deltaY * 0.008; // Inverted: Swipe up = View tilts down
+
                 startX = touch.clientX;
                 startY = touch.clientY;
+
             } else if (e.touches.length === 2) {
-                let dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                if (initialDist === 0) { initialDist = dist; } 
-                else {
+                // --- SMOOTH LINEAR ZOOM ---
+                let dist = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+
+                if (initialDist === 0) {
+                    initialDist = dist; 
+                } else {
                     let delta = (dist - initialDist) * 0.005;
-                    zoom = Math.min(Math.max(0.3, zoom + delta), 4.0);
-                    initialDist = dist;
+                    currentZoom = Math.min(Math.max(0.3, currentZoom + delta), 4.0);
+                    initialDist = dist; // Baseline shift for smoothness
                 }
             }
-            conn.send({ rx: rotationX, ry: rotationY, zoom: zoom });
-        }, { passive: false });
 
-        pad.addEventListener('touchend', () => { initialDist = 0; });
+            // Sync with Desktop
+            conn.send({
+                ry: rotationY,
+                rx: rotationX,
+                zoom: currentZoom
+            });
+        });
+
+        pad.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                initialDist = 0; // Clear zoom reference
+            }
+        });
+
     </script>
 </body>
 </html>
