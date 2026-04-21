@@ -2,30 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AEGIS | DYNAMIC_INJECTION</title>
+    <title>AEGIS | DYNAMIC_HOST</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: #ffaa00; font-family: 'Courier New', monospace; }
         #hud { position: fixed; inset: 0; pointer-events: none; z-index: 100; padding: 25px; }
-        .widget { position: absolute; padding: 12px; border: 1px solid rgba(255, 170, 0, 0.4); background: rgba(0, 0, 0, 0.85); pointer-events: auto; }
-        #drop-zone { 
-            top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 300px; height: 200px; border: 2px dashed #ffaa00;
-            display: flex; align-items: center; text-align: center; font-size: 12px;
-            opacity: 0.5; transition: 0.3s;
-        }
-        #drop-zone.dragover { background: rgba(255, 170, 0, 0.2); opacity: 1; scale: 1.1; }
-        #log { bottom: 25px; left: 25px; width: 340px; max-height: 150px; overflow-y: auto; font-size: 11px; border-bottom: 2px solid #ffaa00; }
+        .widget { position: absolute; padding: 12px; border: 1px solid rgba(255, 170, 0, 0.4); background: rgba(0, 0, 0, 0.9); pointer-events: auto; }
+        #drop-zone { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 340px; height: 200px; border: 2px dashed #ffaa00; display: flex; align-items: center; text-align: center; opacity: 0.6; }
+        #log { bottom: 25px; left: 25px; width: 340px; font-size: 11px; border-bottom: 2px solid #ffaa00; }
         #id-box { top: 20px; left: 20px; border-left: 4px solid #00ff00; }
     </style>
 </head>
 <body onclick="initAudio()">
-
     <div id="hud">
-        <div id="id-box" class="widget">NEURAL_ID: <span id="stark-id" style="color:#00ff00;">...</span></div>
-        <div id="drop-zone" class="widget">>> DROP_IMAGE_HERE_FOR_3D_SCAN <<</div>
-        <div id="log" class="widget">>> AEGIS_DYNAMIC_LOADER_ONLINE<br>>> READY_FOR_INJECTION</div>
+        <div id="id-box" class="widget">NEURAL_ID: <span id="stark-id" style="color:#00ff00;">INITIALIZING...</span></div>
+        <div id="drop-zone" class="widget">>> DROP IMAGE HERE TO INJECT ASSET <<</div>
+        <div id="log" class="widget">>> AEGIS_CORE_V5.2<br>>> STATUS: AWAITING_DATA...</div>
     </div>
 
     <script>
@@ -36,18 +29,12 @@
             if(!audioReady) return;
             const u = new SpeechSynthesisUtterance(t);
             u.pitch = 1.1; window.speechSynthesis.speak(u);
-            const l = document.getElementById('log');
-            l.innerHTML += `<br>>> FRIDAY: ${t}`;
-            l.scrollTop = l.scrollHeight;
+            document.getElementById('log').innerHTML += `<br>>> ${t}`;
         }
 
-        function initAudio() {
-            if(audioReady) return;
-            audioReady = true;
-            speak("Dynamic injection system online. Awaiting asset drop.");
-        }
+        function initAudio() { audioReady = true; speak("Neural link initialized."); }
 
-        // --- 1. THE ENGINE ---
+        // --- ENGINE SETUP ---
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -55,78 +42,65 @@
         document.body.appendChild(renderer.domElement);
         camera.position.z = 15;
 
-        // --- 2. DYNAMIC INJECTION LOGIC ---
+        // --- DYNAMIC SCANNER ---
         function generateHologram(imageSrc) {
             if(currentHolo) scene.remove(currentHolo);
-            speak("Scanning external asset. Converting pixels to coordinates.");
-
             const loader = new THREE.TextureLoader();
             loader.load(imageSrc, (txt) => {
                 const cvs = document.createElement('canvas');
                 const ctx = cvs.getContext('2d');
-                const img = txt.image;
-                cvs.width = img.width; cvs.height = img.height;
-                ctx.drawImage(img, 0, 0);
-
+                cvs.width = txt.image.width; cvs.height = txt.image.height;
+                ctx.drawImage(txt.image, 0, 0);
                 const data = ctx.getImageData(0,0,cvs.width,cvs.height).data;
                 const pos = [], cols = [];
 
-                for(let y=0; y<cvs.height; y+=3) { // Density adjustment
+                for(let y=0; y<cvs.height; y+=3) {
                     for(let x=0; x<cvs.width; x+=3) {
                         const i = (y * cvs.width + x) * 4;
-                        const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
-                        const alpha = data[i+3];
-
-                        // Filter: Brightness or Alpha check
-                        if(alpha > 100 || brightness > 50) {
-                            pos.push((x-cvs.width/2)/50, -(y-cvs.height/2)/50, (Math.random()-0.5)*0.5);
-                            // Preserve original colors of the image!
+                        if(data[i+3] > 100) {
+                            pos.push((x-cvs.width/2)/50, -(y-cvs.height/2)/50, (Math.random()-0.5));
                             cols.push(data[i]/255, data[i+1]/255, data[i+2]/255);
                         }
                     }
                 }
-
                 const geo = new THREE.BufferGeometry();
                 geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
                 geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-                
-                const mat = new THREE.PointsMaterial({ size: 0.02, vertexColors: true, transparent: true });
-                currentHolo = new THREE.Points(geo, mat);
+                currentHolo = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.03, vertexColors: true, transparent: true }));
                 scene.add(currentHolo);
-                speak("Injection complete. Visualizing data.");
-                document.getElementById('drop-zone').style.display = 'none'; // Hide drop zone after load
+                speak("Asset scan complete.");
+                document.getElementById('drop-zone').style.display = 'none';
             });
         }
 
-        // --- 3. DRAG & DROP HANDLERS ---
-        const dz = document.getElementById('drop-zone');
-        window.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
-        window.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-        window.addEventListener('drop', (e) => {
+        // --- DRAG & DROP ---
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => {
             e.preventDefault();
-            dz.classList.remove('dragover');
             const file = e.dataTransfer.files[0];
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
-                reader.onload = (event) => generateHologram(event.target.result);
+                reader.onload = ev => generateHologram(ev.target.result);
                 reader.readAsDataURL(file);
             }
         });
 
-        function animate() {
-            requestAnimationFrame(animate);
-            if(currentHolo) currentHolo.rotation.y += 0.005;
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        // --- 4. NEURAL LINK ---
+        // --- COMMUNICATION ---
         const peer = new Peer();
         peer.on('open', id => document.getElementById('stark-id').innerText = id);
         peer.on('connection', conn => {
-            speak("Remote neural link established.");
-            conn.on('data', d => { if(currentHolo && d.ry) currentHolo.rotation.y = d.ry; });
+            speak("Remote connection established.");
+            conn.on('data', data => {
+                if(currentHolo) {
+                    currentHolo.rotation.y = data.ry;
+                    currentHolo.rotation.x = data.rx;
+                    currentHolo.scale.setScalar(data.zoom);
+                }
+            });
         });
+
+        function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+        animate();
     </script>
 </body>
 </html>
